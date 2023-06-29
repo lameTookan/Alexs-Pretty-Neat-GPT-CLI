@@ -35,7 +35,7 @@ Made and debugged the following classes:
 
 ---
 
-# Day 4 of this project (June 29, 2023)
+# Day 4 of this project (June 28, 2023)
 
 - Finished the ChatWrapper class, and debugged it
 - Finished GPTChat class, and debugged it, still need to make more robust test cases for both of these classes
