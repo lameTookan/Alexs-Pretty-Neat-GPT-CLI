@@ -1,0 +1,14 @@
+{
+    "cSpell.enableFiletypes": [
+        "python"
+    ],
+    "cSpell.words": [
+        "argcount",
+        "docstrings",
+        "logit",
+        "openai",
+        "Syles",
+        "tiktoken",
+        "varnames"
+    ]
+}

@@ -1,5 +1,5 @@
 import tiktoken
-from ChatHistory import EncodedMessage 
+from collections import namedtuple
 import random 
 import unittest
 from typing import NamedTuple, List, Tuple, Optional, Callable, Set, Dict, Deque
@@ -16,7 +16,7 @@ class BadMessageError(Exception):
         temp.append(self.msg)
         return ' '.join(temp)
 
-
+EncodedMessage = namedtuple('EncodedMessage', ['message', 'token_count'])
 class EncodeMessage:
 
 
