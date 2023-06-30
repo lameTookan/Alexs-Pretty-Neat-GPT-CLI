@@ -8,11 +8,14 @@ import random
 import ChatHistory as ch
 import GPTchat as g
 
+
 def format_dict_as_string(d: dict, delim: str = ": ") -> str:
     result = []
     for key, value in d.items():
         result.append(f"{key}{delim}{value}")
     return "\n".join(result)
+
+
 def toggle(input: bool):
     if input == True:
         return False
@@ -125,11 +128,12 @@ class ChatLoop:
                             continue
 
     def modify_model_param_menu(self) -> None:
-        def split_input_from_cmd(cmd: str, string:str) -> str:
+        def split_input_from_cmd(cmd: str, string: str) -> str:
             if cmd in string:
                 return string.split(cmd)[1].strip()
             else:
                 return None
+
         msg_list = [
             "Welcome to the model parameter modification menu!",
             "Explore different parameters to impact the chatbot's responses.",
@@ -150,9 +154,9 @@ class ChatLoop:
         print(msg)
         print("Current parameters:")
         print(current_params)
-        possible_params = self.gpt_chat. possible_optional_params
+        possible_params = self.gpt_chat.possible_optional_params
         param_help_dict = self.gpt_chat.param_help
-        
+
         while True:
             ans = input("> ")
             ans_lower = ans.lower()
@@ -185,13 +189,10 @@ class ChatLoop:
                     try:
                         self.gpt_chat.modify_params()
                     except g.BadChatCompletionParams as e:
-                       print("Invalid Parameter. More info:")
-                       print(e)
-                       continue
+                        print("Invalid Parameter. More info:")
+                        print(e)
+                        continue
                     print("Parameter set successfully!")
-                       
-                        
-                
 
 
 class MainMenu:

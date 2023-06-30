@@ -1,5 +1,5 @@
 import tiktoken
-from object_factory import templates
+
 from collections import namedtuple, UserString, UserList, UserDict, deque, namedtuple
 import datetime
 from EncodeMessage import EncodeMessage, BadMessageError, EncodedMessage
@@ -126,7 +126,7 @@ class ChatLog:
         save_folder="chat_log_saves",
         model="gpt-4",
         max_chat_messages: int = 200,
-        template: str = None,
+       
     ):
         self.constructor_args = {
             "max_model_tokens": max_model_tokens,
@@ -162,24 +162,24 @@ class ChatLog:
         if extra_wildcards:
             self.system_prompt_wildcards.update(extra_wildcards)
         # this is for use with the ChatLogAndGPTChatFactory class, see object_factory.py for more info 
-        self.template = template
-    def reload_from_template(self, template_name: str = None)-> bool:
-        if template_name:
-            self.template = template_name
-        else:
-            template_name = self.template
-        if not template_name:
-            return False
-        template = templates.get(template_name).get("chat_log")
-        if not template:
-            return False
+        #self.template = template
+    # def reload_from_template(self, template_name: str = None)-> bool:
+    #     if template_name:
+    #         self.template = template_name
+    #     else:
+    #         template_name = self.template
+    #     if not template_name:
+    #         return False
+    #     template = templates.get(template_name).get("chat_log")
+    #     if not template:
+    #         return False
        
-        for key, val in template.items():
-            if val:
-                self.__setattr__(key, val)
-        self.work_out_tokens()
+    #     for key, val in template.items():
+    #         if val:
+    #             self.__setattr__(key, val)
+    #     self.work_out_tokens()
       
-        return True
+    #     return True
     def _check_wildcards(self, wildcards: dict):
         """Checks if wildcards are valid"""
         if not isinstance(wildcards, dict):

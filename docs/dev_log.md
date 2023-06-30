@@ -80,3 +80,33 @@ Made and debugged the following classes:
 - Think about extending functionality for WorkingCopy
 
 ---
+
+# Day 5 of this project (June 29, 2023)
+
+_As a brief note, this was edited by GPT-4, so my voice has changed a touch. The words themselves were mine, just rephrased a bit more professional sounding than I'd normally write, It would probably look better not to include this note, however, I think its best to be open with AI involvement_
+
+**Question Asked to GPT-4(via ChatGPT)** : _"Can you please describe your involvement in the editing process?"_
+
+> "As an AI developed by OpenAI, my role in the editing process involved taking the original text and improving its clarity, coherence, and readability. The input was provided by the user and I did not add any new information or ideas. My goal was to respect the user's voice while ensuring that the message is clearly conveyed. I also helped to format the text in a Markdown format suitable for a development log. I strive to maintain a neutral, professional tone in my edits, but always within the parameters set by the user's original input."
+
+## Progress Today:
+
+- Enhanced the **template system** for better robustness and encapsulation. Integrated it with other classes, enabling the saving of templates within the classes themselves and methods for reloading the classes from the template in case of any unwanted issues.
+- Separated the **template selection and verification system** from the object factory class. This ensures avoidance of circular imports, since the template selector and system does not need to directly use any of the classes, thus eliminating the chance of circular imports when importing it into various classes.
+- Undertook a comprehensive **debugging** process across the entire system.
+
+  - Created **test classes** for:
+    - Object factory
+    - Template selector
+    - GPTChat
+  - Also updated the test class for ChatLog to test the new template reloading system.
+
+- Accomplished an extensive debugging exercise along with **light refactoring**. This included adding more doc strings and reorganizing classes so that related methods are next to each other for simplicity.
+
+## To Do:
+
+- Expand the test classes for the chat wrapper. This is to include testing of the new save and load feature which utilizes the 'save to dict' system from GPTchat and the SaveToDict subclass. This is separate from the SaveToFile subclass that is responsible for saving to the file path.
+
+## Dev Notes:
+
+Today, I had a feeling that I wasn't accomplishing much, but I did a lot of work on debugging, testing, documenting, and reworking a few aspects. This is equally crucial as adding new features, even if it doesn't feel as productive. It's all part of the learning process, the primary purpose of this project. I'm nearing the end. Once I make sure all my code is bug-free (with a few things in ChatWrapper being all that's left), I should be ready to finish work on the main CLI menu interface. After 4 days, I'm excited to be able to actually use the systems I made beyond some light testing. Creating menus and interfaces is somewhat enjoyable, even if it's command-line based.

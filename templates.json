@@ -1,0 +1,87 @@
+{
+    "gpt-3_16K_default": {
+        "chat_log": {
+            "max_chat_messages": 2000,
+            "max_completion_tokens": 2000,
+            "max_model_tokens": 16000,
+            "model": "gpt-3",
+            "token_padding": 500
+        },
+        "description": "Default settings for gpt-3-16K",
+        "gpt_chat": {
+            "max_tokens": 2000,
+            "model_name": "gpt-3-16K",
+            "temperature": 0.5
+        },
+        "tags": [
+            "gpt-3-16K",
+            "default",
+            "normal",
+            "gpt-3"
+        ]
+    },
+    "gpt-4_creative": {
+        "chat_log": {
+            "max_chat_messages": 1000,
+            "max_completion_tokens": 1000,
+            "max_model_tokens": 8000,
+            "model": "gpt-4",
+            "token_padding": 500
+        },
+        "description": "Use this to get more creative responses, higher temperature means more creative",
+        "gpt_chat": {
+            "max_tokens": 1000,
+            "model_name": "gpt-4",
+            "temperature": 1.5
+        },
+        "tags": [
+            "gpt-4",
+            "creative",
+            "high-temperature"
+        ]
+    },
+    "gpt-4_default": {
+        "chat_log": {
+            "max_chat_messages": 1000,
+            "max_completion_tokens": 1000,
+            "max_model_tokens": 8000,
+            "model": "gpt-4",
+            "token_padding": 500
+        },
+        "description": "Default settings for gpt-4",
+        "gpt_chat": {
+            "frequency_penalty": 0.5,
+            "max_tokens": 1000,
+            "model_name": "gpt-4",
+            "temperature": 1.1,
+            "top_p": 1.0
+        },
+        "tags": [
+            "gpt-4",
+            "default",
+            "normal"
+        ]
+    },
+    "gpt-4_small": {
+        "chat_log": {
+            "max_chat_messages": 50,
+            "max_completion_tokens": 1000,
+            "max_model_tokens": 8000,
+            "model": "gpt-4",
+            "token_padding": 500
+        },
+        "description": "To save money on tokens use this to limit the number of messages to 50",
+        "gpt_chat": {
+            "max_tokens": 1000,
+            "model_name": "gpt-4",
+            "temperature": 0.5,
+            "top_p": 1.0
+        },
+        "tags": [
+            "gpt-4",
+            "small",
+            "cheap",
+            "low-cost"
+        ]
+    }
+}

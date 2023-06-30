@@ -2,16 +2,15 @@ import ChatHistory as ch
 import openai
 import os
 import json
-from object_factory import templates
-# import super_secret
+
+
 from typing import List, Dict, Union, Any, Optional
 import uuid
 import datetime
 import time
+import super_secret
 
-# API_KEY = super_secret.OPENAI_API_KEY
-
-from ChatHistory import ChatLog
+API_KEY = super_secret.OPENAI_API_KEY
 
 
 class BadModelParametersError(Exception):
@@ -82,12 +81,15 @@ class BadChatCompletionParams(Exception):
 def BadGPTChatDictError(Exception):
     pass
 
-def try_converting_to_datatype(value: any, datatype: type) -> any | False:
+
+def try_converting_to_datatype(value: Any, datatype: type) -> Any | bool:
     """Converts a value to a datatype, returns False if it fails"""
     try:
         return datatype(value)
     except ValueError:
         return False
+
+
 class GPTChat:
     """
     A class that abstracts away using the openai api to chat with a model
@@ -130,6 +132,9 @@ class GPTChat:
         "frequency_penalty",
         "presence_penalty",
     }
+    # this is a set of all the possible parameters that can be passed to the openai api, and their descriptions, used for error checking but also for help.
+    # check out the official openai api docs for more info
+    # https://platform.openai.com/docs/guides/gpt/chat-completions-api
     param_help = {
         "model": "The model to use for completion, check out openai api for more info",
         "temperature": "The higher the temperature, the crazier the text float between 0 and 2",
@@ -149,7 +154,7 @@ class GPTChat:
         top_p: float = None,
         frequency_penalty: float = None,
         presence_penalty: float = None,
-        template = None
+        template: dict = None,
     ):
         self.constructor_params = {
             "temperature": temperature,
@@ -160,7 +165,7 @@ class GPTChat:
             "frequency_penalty": frequency_penalty,
             "presence_penalty": presence_penalty,
             "return_type": return_type,
-            "template": template
+            "template": template,
         }
         # for use in the ChatLogAndGPTChatFactory class
         self.template = template
@@ -172,22 +177,14 @@ class GPTChat:
         self.presence_penalty = presence_penalty
         self.api_key = API_KEY
         self.return_type = return_type
-    def reload_from_template(self, template_name: None | str = None) -> bool:
-        if template_name is None:
-            template = self.template
-        if template_name is None:
+
+    def reload_from_template(self) -> bool:
+        """Reloads the model from the template, if the template is None, returns False"""
+        if self.template == None:
             return False
-        if template_name not in self.template:
-            return False
-        self.model_name = template['model_name']
-        del template['model_name']
-        try:
-            self.modify_params(**template)
-        except BadChatCompletionParams:
-            return False
-        except TypeError:
-            return False
-        return True
+        settings = self.template["gpt_chat"]
+        self.modify_params(**settings)
+
     def __repr__(self):
         constructor = (
             "GPTChat("
@@ -202,17 +199,23 @@ class GPTChat:
         other_info = "id = " + str(id(self))
         return "\n".join([constructor, model_params, other_info])
 
+    # all of the following are setters and getters for the model parameters. They accept None as a value, which means that the parameter not be sent to the openai api(ie it won't send over param=None, it just won't send over that param at all)
     @property
     def temperature(self) -> float:
+        """Returns the temperature"""
         return self._temperature
 
     @temperature.setter
     def temperature(self, value: float) -> None:
+        """Sets the temperature, which is a float between 0 and 2"""
         if value is None:
             self._temperature = value
+            return None
         value = try_converting_to_datatype(value, float)
         if value is False:
-            raise BadChatCompletionParams(bad_param={"temperature": value}, msg="Temperature must be a float")
+            raise BadChatCompletionParams(
+                bad_param={"temperature": value}, msg="Temperature must be a float"
+            )
         elif not 0 <= value <= 2:
             raise BadChatCompletionParams(bad_param={"temperature": value})
         else:
@@ -220,25 +223,32 @@ class GPTChat:
 
     @property
     def model_name(self) -> str:
+        """Returns the model name"""
         return self._model_name
 
     @model_name.setter
     def model_name(self, value: str) -> None:
-        # If you have a specific list of models, you can check here
+        """Sets the model name, which is a string, these are changed often by openai, so check the openai api for the most up to date models. The openai api will raise an error if it's not valid.The default is gpt-4"""
+
         self._model_name = value
 
     @property
     def max_tokens(self) -> int:
+        """Returns the max tokens, which is an int between 1 and the model's max tokens"""
         return self._max_tokens
 
     @max_tokens.setter
     def max_tokens(self, value: int) -> None:
+        """Sets the max tokens, which is an int between 1 and the model's max tokens"""
         if value is None:
             self._max_tokens = value
+            return None
         value = try_converting_to_datatype(value, int)
         if value is False:
-            raise BadChatCompletionParams(bad_param={"max_tokens": value}, msg="Max tokens must be an int")
-        
+            raise BadChatCompletionParams(
+                bad_param={"max_tokens": value}, msg="Max tokens must be an int"
+            )
+
         elif value < 1:
             raise BadChatCompletionParams(bad_param={"max_tokens": value})
         else:
@@ -246,15 +256,20 @@ class GPTChat:
 
     @property
     def top_p(self) -> float:
+        """Returns the top p, which is a float between 0 and 1"""
         return self._top_p
 
     @top_p.setter
     def top_p(self, value: float) -> None:
+        """Sets the top p, which is a float between 0 and 1"""
         if value is None:
             self._top_p = value
+            return None
         value = try_converting_to_datatype(value, float)
         if value is False:
-            raise BadChatCompletionParams(bad_param={"top_p": value}, msg="Top p must be a float")
+            raise BadChatCompletionParams(
+                bad_param={"top_p": value}, msg="Top p must be a float"
+            )
         elif not 0 <= value <= 1:
             raise BadChatCompletionParams(bad_param={"top_p": value})
         else:
@@ -266,11 +281,16 @@ class GPTChat:
 
     @frequency_penalty.setter
     def frequency_penalty(self, value: float) -> None:
+        """Sets the frequency penalty, which is a float between 0 and 2"""
         if value is None:
             self._frequency_penalty = value
+            return None
         value = try_converting_to_datatype(value, float)
         if value is False:
-            raise BadChatCompletionParams(bad_param={"frequency_penalty": value}, msg="Frequency penalty must be a float")
+            raise BadChatCompletionParams(
+                bad_param={"frequency_penalty": value},
+                msg="Frequency penalty must be a float",
+            )
         elif not 0 <= value <= 2:
             raise BadChatCompletionParams(bad_param={"frequency_penalty": value})
         else:
@@ -278,16 +298,22 @@ class GPTChat:
 
     @property
     def presence_penalty(self) -> float:
+        """Gets the presence penalty, which is a float between 0 and 2"""
         return self._presence_penalty
 
     @presence_penalty.setter
     def presence_penalty(self, value: float) -> None:
-        
+        """Sets the presence penalty, which is a float between 0 and 2"""
+
         if value is None:
             self._presence_penalty = value
+            return None
         value = try_converting_to_datatype(value, float)
         if value is False:
-            raise BadChatCompletionParams(bad_param={"presence_penalty": value}, msg="Presence penalty must be a float")
+            raise BadChatCompletionParams(
+                bad_param={"presence_penalty": value},
+                msg="Presence penalty must be a float",
+            )
         elif not 0 <= value <= 2:
             raise BadChatCompletionParams(bad_param={"presence_penalty": value})
         else:
@@ -295,10 +321,15 @@ class GPTChat:
 
     @property
     def return_type(self) -> str:
+        """Gets the return type of the chatbot"""
         return self._return_type
 
     @return_type.setter
     def return_type(self, value: str) -> None:
+        """Sets the return type of the chatbot, can be one of the following:
+            "string", "json", "dict", "Message"
+        Verify that the value is one of the above, otherwise raise a BadReturnTypeError
+        """
         if value not in self.possible_return_types:
             raise BadReturnTypeError(return_type=value)
         self._return_type = value
@@ -307,6 +338,7 @@ class GPTChat:
         self, message: openai.ChatCompletion
     ) -> Union[ch.Message, str, dict]:
         """Formats the return type based on the return_type attribute"""
+
         message_dict = message.choices[0].message
         if self.return_type == "string":
             return message_dict["content"]
@@ -351,7 +383,7 @@ class GPTChat:
 
         return_dict = {}
         add_to_dict_if_not_none(return_dict, "temperature", self.temperature)
-        add_to_dict_if_not_none(return_dict, "model", self.model_name)
+        add_to_dict_if_not_none(return_dict, "model_name", self.model_name)
         add_to_dict_if_not_none(return_dict, "max_tokens", self.max_tokens)
         add_to_dict_if_not_none(return_dict, "top_p", self.top_p)
         add_to_dict_if_not_none(
@@ -363,7 +395,11 @@ class GPTChat:
     def make_api_call(
         self, chat_log: Union[list[dict], ch.ChatLog]
     ) -> Union[ch.Message, str, dict]:
-        """Makes an API call to OpenAI's API and returns the result in the format specified by the return_type attribute"""
+        """Makes an API call to OpenAI's API and returns the result in the format specified by the return_type attribute
+        Note: If a model parameter is None, it will not be included in the API call at all, so openai will use the default
+
+        This means that you can set any of the parameters to None and instead of sending over `param_name = None' and causing an error, they just won't be sent at all
+        """
 
         def add_to_dict_if_not_none(dictionary, key, value):
             if value is not None:
@@ -423,10 +459,11 @@ class GPTChat:
             "return_type": self.return_type,
         }
 
-    def _verify_save_dict(self, save_dict):
+    def _verify_save_dict(self, save_dict: dict) -> dict:
         """Verifies that a save dict is valid, if not raises an error"""
         required_keys = {
             "temperature": float,
+            "max_tokens": int,
             "model_name": str,
             "top_p": float,
             "frequency_penalty": float,
@@ -438,7 +475,7 @@ class GPTChat:
         for key, value in required_keys.items():
             if not key in save_dict:
                 raise BadGPTChatDictError(" Save Dict Missing key: " + key)
-            if not isinstance(save_dict[key], value):
+            if not isinstance(save_dict[key], value) and save_dict[key] is not None:
                 raise BadGPTChatDictError(
                     f"Save Dict key {key} must be of type {value}, not {type(save_dict[key])}"
                 )
@@ -455,203 +492,60 @@ class GPTChat:
         self.return_type = save_dict["return_type"]
 
 
-class ChatWrapper:
-    """Wrapper for GPTChat and ChatLog to make it easier to use, simplifies making a chatbot. Provide an instance of GPTChat and ChatLog to the constructor. and use the run_chat method to send the chatlog to the API and add the response to the chatlog
-    Attributes:
-        gpt_chat (GPTChat): Instance of GPTChat object
-        chat_log (ChatLog): Instance of ChatLog object
-        uuid (uuid): Unique identifier for the chatbot
-        version (str): Version of the ChatWrapper class
-        is_loaded (bool): Whether the chatbot has been loaded from a save file
-        save_and_load (SaveAndLoad): Instance of SaveAndLoad class
-    Methods:
-        run_chat(self)-> None: Sends chatlog to API and adds response to chatlog
-        chat_with_assistant(self, message: str) -> str: Adds message to chatlog and runs chat, and returns the assistant message pretty printed
-        save(self, file_name, overwrite=False) -> bool: Saves the chatbot to a file, uses the save_and_load object
-        load(self, file_name) -> bool: Loads the chatbot from a file, uses the save_and_load object
-    Subclasses:
-        SaveAndLoad: Class for saving and loading chatbots
-    Relies on:
-        GPTChat, ChatLog, SaveAndLoad, Message
-    Raises:
-        TypeError: If gpt_chat is not an instance of GPTChat
-        BadChatWrapperDictError: If the save dict is missing a key or has a key with the wrong type
-    Example Usage:
-        chatbot = ChatWrapper(GPTChat_object, ChatLog_object)
-        print(chatbot.chat_with_assistant("Hello"))
-        chatbot.save("chatbot_save")
-        chatbot.load("chatbot_save")
+import unittest
 
 
+class TestGPTChat(unittest.TestCase):
+    def setUp(self):
+        self.gpt_chat = GPTChat(API_KEY=API_KEY)
 
-    """
+    def test_temperature_setter_and_getter(self):
+        self.gpt_chat.temperature = 1.5
+        self.assertEqual(self.gpt_chat.temperature, 1.5)
 
-    version = "0.1.0"
+    def test_model_name_setter_and_getter(self):
+        self.gpt_chat.model_name = "gpt-3"
+        self.assertEqual(self.gpt_chat.model_name, "gpt-3")
 
-    def __init__(
-        self, gpt_chat: GPTChat, chat_log: ch.ChatLog, save_path: str = "chatbot_saves"
-    ) -> None:
-        self.gpt_chat = gpt_chat
-        self.chat_log = chat_log
-        self.gpt_chat.return_type = "string"
-        self.uuid = uuid.uuid4()
-        self.is_loaded = False
-        self.save_and_load = self.SaveAndLoad(self, save_path=save_path)
+    def test_max_tokens_setter_and_getter(self):
+        self.gpt_chat.max_tokens = 500
+        self.assertEqual(self.gpt_chat.max_tokens, 500)
 
-    def run_chat(self) -> None:
-        """Sends chatlog to API and adds response to chatlog, uses the GPTChat object's make_api_call method. If an error occurs while making an API call, the chatbot will be saved to a file with the current time as the name and the error will be raised"""
-        try:
-            response = self.gpt_chat.make_api_call(
-                self.chat_log.get_finished_chat_log()
-            )
-        except openai.OpenAIError as e:
-            print("A fatal error occurred while making an API call to OpenAI's API")
-            save_name = (
-                datetime.datetime.now().isoformat().replace(":", "-") + "_fatal_error"
-            )
-            print("Saving chatbot to " + save_name + " before exiting...")
-            if self.save(save_name):
-                print("Chatbot saved successfully")
-            raise e
+    def test_top_p_setter_and_getter(self):
+        self.gpt_chat.top_p = 0.9
+        self.assertEqual(self.gpt_chat.top_p, 0.9)
 
-        self.chat_log.assistant_message = response
+    def test_frequency_penalty_setter_and_getter(self):
+        self.gpt_chat.frequency_penalty = 0.5
+        self.assertEqual(self.gpt_chat.frequency_penalty, 0.5)
 
-    @property
-    def assistant_message(self) -> str:
-        """Returns the assistant message"""
+    def test_presence_penalty_setter_and_getter(self):
+        self.gpt_chat.presence_penalty = 0.5
+        self.assertEqual(self.gpt_chat.presence_penalty, 0.5)
 
-        return self.chat_log.assistant_message.pretty()
+    def test_return_type_setter_and_getter(self):
+        self.gpt_chat.return_type = "dict"
+        self.assertEqual(self.gpt_chat.return_type, "dict")
 
-    @assistant_message.setter
-    def assistant_message(self, message: str) -> None:
-        """Sets the assistant message"""
-        self.chat_log.assistant_message = message
+    def test_modify_params(self):
+        self.gpt_chat.modify_params(temperature=0.8, max_tokens=300)
+        self.assertEqual(self.gpt_chat.temperature, 0.8)
+        self.assertEqual(self.gpt_chat.max_tokens, 300)
 
-    @property
-    def user_message(self) -> str:
-        """Returns the user message, pretty printed"""
-        return self.chat_log.user_message.pretty()
+    def test_get_params(self):
+        self.gpt_chat.modify_params(temperature=0.8, max_tokens=300)
+        params = self.gpt_chat.get_params()
+        self.assertEqual(params["temperature"], 0.8)
+        self.assertEqual(params["max_tokens"], 300)
 
-    @user_message.setter
-    def user_message(self, message: str) -> None:
-        """Sets the user message"""
-        self.chat_log.user_message = message
+    def test_load_save_dict(self):
+        save_dict = self.gpt_chat.make_save_dict()
+        test_chat = GPTChat(API_KEY=API_KEY)
+        GPTChat.load_save_dict(test_chat, save_dict)
+        for key, value in save_dict.items():
+            with self.subTest(key=key):
+                self.assertEqual(getattr(test_chat, key), value)
 
-    def chat_with_assistant(self, message: str) -> str:
-        """Sets an assistant message and returns the response, pretty printed"""
-        self.user_message = message
-        self.run_chat()
-        return self.assistant_message
 
-    def save(self, file_name: str, overwrite: bool = False) -> bool:
-        return self.save_and_load.save_to_file(file_name, overwrite)
-
-    def load(self, file_name: str) -> bool:
-        return self.save_and_load.load_from_file(file_name)
-
-    def modify_max_completion_tokens(self, max_completion_tokens: int) -> None:
-        """This is necessary as the max_completion_tokens must be changed in both the ChatLog object and the GPTChat object"""
-        self.chat_log.set_token_info(max_completion_tokens=max_completion_tokens)
-        self.gpt_chat.max_tokens = max_completion_tokens
-
-    class SaveAndLoad:
-        """
-        Class for saving and loading chat wrappers, with separate methods for saving and loading to file, and saving and loading to dictionary"
-        Methods:
-            save_to_file(file_name: str, overwrite: bool = False) -> bool
-            load_from_file(file_name: str) -> bool
-            get_files(remove_path = True) -> list
-            make_save_dict(file_name: str) -> dict
-            load_from_dict(save_dict: dict) -> None
-            _verify_save_dict(save_dict: dict) -> dict
-        Attributes:
-            chat_wrapper: The chat wrapper to save or load from
-            save_folder: The folder to save to or load from
-            gpt_chat: The GPTChat object inside the chat wrapper
-            chat_log: The ChatLog object inside the chat wrapper
-        Example Usage:
-            chat_wrapper = ChatWrapper(gpt_chat, chat_log)
-            chat_wrapper.save_and_load.save_to_file("chat_wrapper_save")
-            chat_wrapper.save_and_load.load_from_file("chat_wrapper_save")
-            chat_wrapper.save_and_load.get_files()
-        """
-
-        def __init__(self, chat_wrapper, save_folder="chat_wrapper_saves"):
-            self.chat_wrapper = chat_wrapper
-            if not save_folder.endswith("/"):
-                save_folder = save_folder + "/"
-            self.save_folder = save_folder
-            if not os.path.exists(self.save_folder):
-                os.makedirs(self.save_folder)
-            self.gpt_chat = chat_wrapper.gpt_chat
-            self.chat_log = chat_wrapper.chat_log
-
-        def make_save_dict(self, file_name: str) -> dict:
-            """Returns a dictionary that can be used to recreate the chat wrapper"""
-
-            chat_log_dict = self.chat_log.make_save_dict()
-            gpt_chat_dict = self.gpt_chat.make_save_dict()
-
-            meta_data = {
-                "chat_wrapper_version": self.chat_wrapper.version,
-                "chat_wrapper_uuid": self.chat_wrapper.uuid,
-                "timestamp": datetime.datetime.now().isoformat(),
-            }
-            return {
-                "meta_data": meta_data,
-                "chat_log": chat_log_dict,
-                "gpt_chat": gpt_chat_dict,
-            }
-
-        def load_save_dict(self, save_dict: dict) -> None:
-            """Loads a save dict into the chat wrapper"""
-            self.chat_wrapper.uuid = save_dict["meta_data"]["chat_wrapper_uuid"]
-            self.chat_log.load_save_dict(save_dict["chat_log"])
-            self.gpt_chat.load_save_dict(save_dict["gpt_chat"])
-            self.chat_wrapper.is_loaded = True
-
-        def save_to_file(self, file_name: str, overwrite=False) -> bool:
-            """Saves the chat wrapper to a file, returns True if successful, False if not"""
-            if not overwrite and os.path.exists(file_name):
-                return False
-            file_name = self._add_file_path(file_name)
-            save_dict = self.make_save_dict(file_name)
-            with open(file_name, "w") as f:
-                json.dump(save_dict, f)
-            return True
-
-        def load_from_file(self, file_name: str) -> None:
-            """Loads a save file into the chat wrapper"""
-            file_name = self._add_file_path(file_name)
-            if not os.path.exists(file_name):
-                return False
-            with open(file_name, "r") as f:
-                save_dict = json.load(f)
-            self.load_save_dict(save_dict)
-
-        def _add_file_path(self, file_name: str) -> str:
-            """Adds the path to the file name, as well as the .json extension"""
-
-            if not file_name.endswith(".json"):
-                file_name = file_name + ".json"
-            if not file_name.startswith(self.save_folder):
-                file_name = self.save_folder + file_name
-            return file_name
-
-        def _remove_file_path(self, file_name: str) -> str:
-            """Removes the path from the file name, as well as the .json extension"""
-            if file_name.startswith(self.save_folder):
-                file_name = file_name[len(self.save_folder) :]
-            if file_name.endswith(".json"):
-                file_name = file_name[:-5]
-            return file_name
-
-        def get_files(self, remove_path=True) -> list:
-            """Returns a list of files in the save folder, if remove_path is true, the path will be removed from the file names"""
-            files = []
-            for file in os.listdir(self.save_folder):
-                if file.endswith(".json"):
-                    if remove_path:
-                        file = self._remove_file_path(file)
-                    files.append(file)
-            return files
+if __name__ == "__main__":
+    unittest.main()

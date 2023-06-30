@@ -7,120 +7,113 @@ import openai
 import tiktoken
 import json
 import random
+from templates import template_selector, GetTemplates
 
-import GPTchat as g
-import ChatHistory as ch
+import chat_wrapper as cw
 from typing import List, Dict, Tuple, Set, Union, Optional, Any
 
 from super_secret import OPENAI_API_KEY as API_KEY
 
-templates = {
-        "gpt-4_default": {
-            "chat_log": {
-                "model": "gpt-4",
-                "max_model_tokens": 8000,
-                "max_completion_tokens": 1000,
-                "max_chat_messages": 1000,
-                "token_padding": 500,
-            },
-            "gpt_chat": {
-                "model_name": "gpt-4",
-                "max_tokens": 1000,
-                "temperature": 1.1,
-                "top_p": 1.0,
-                "frequency_penalty": 0.5,
-            },
-            "description": "Default settings for gpt-4",
-            "tags": {"gpt-4", "default", "normal"},
-        },
-        "gpt-4_small": {
-            "chat_log": {
-                "model": "gpt-4",
-                "max_model_tokens": 8000,
-                "max_completion_tokens": 1000,
-                "max_chat_messages": 50,
-                "token_padding": 500,
-            },
-            "gpt_chat": {
-                "model_name": "gpt-4",
-                "max_tokens": 1000,
-                "temperature": 0.5,
-                "top_p": 1.0,
-            },
-            "description": "To save money on tokens use this to limit the number of messages to 50",
-            "tags": {"gpt-4", "small", "cheap", "low-cost"},
-        },
-        "gpt-4_creative": {
-            "chat_log": {
-                "model": "gpt-4",
-                "max_model_tokens": 8000,
-                "max_completion_tokens": 1000,
-                "max_chat_messages": 1000,
-                "token_padding": 500,
-            },
-            "gpt_chat": {
-                "model_name": "gpt-4",
-                "max_tokens": 1000,
-                "temperature": 1.5,
-            },
-            "description": "Use this to get more creative responses, higher temperature means more creative",
-            "tags": {"gpt-4", "creative", "high-temperature"},
-            "gpt-3_16K_default": {
-                "chat_log": {
-                    "model": "gpt-3",
-                    "max_model_tokens": 16000,
-                    "max_completion_tokens": 2000,
-                    "max_chat_messages": 2000,
-                    "token_padding": 500,
-                },
-                "gpt_chat": {
-                    "model_name": "gpt-3-16K",
-                    "max_tokens": 2000,
-                    "temperature": 0.5,
-                },
-                "description": "Default settings for gpt-3-16K",
-                "tags": {"gpt-3-16K", "default", "normal", "gpt-3"},
-            },
-        
-        },
-    }
 
+class NoTemplateSelectedError(Exception):
+    def __init__(self, message: str = None):
+        if message is None:
+            message = "No template selected"
+        super().__init__(message)
 class ChatLogAndGPTChatFactory:
-    templates = templates
-
-    def __init__(self, API_KEY):
-        self.API_KEY = API_KEY
-        self.selected_template = None
-    def search_by_tag(self, tag: str) -> set:
-        results =  {key:template for key,template in self.templates.items() if tag in template["tags"]}
-        if len(results) == 0:
-            return set()
-        return set(results.keys())
-    def select_template(self, template_name: str) -> dict:
+    """T
+    his class is used to make ChatLog and GPTChat objects from templates
+    Relies on:
+        - template_selector: GetTemplates can use custom instance of this class (Separate instances might be working with a different set of templates, but functionality is the same)
+        - GPTChat: GPTChat class from GPTchat.py
+        - ChatLog: ChatLog class from ChatHistory.py
+    Attributes:
+        - API_KEY: OpenAI API key, required to make GPTChat objects
+        - template_selector: GetTemplates object, used to get templates
+        - selected_template: dict, selected template, selected in the select_template method
         
-        self.selected_template = self.templates.get(template_name, None)
-        return self.selected_template
-    def _make_chat_log(self, chat_log_settings: dict, template_name: str = None) -> ch.ChatLog:
-        chat_log_settings.update({"template": template_name})
-        return ch.ChatLog(**chat_log_settings)
-    def _make_gpt_chat(self,  gpt_chat_settings: dict, template_name: str = None) -> g.GPTChat:
-       settings = gpt_chat_settings.copy()
-       settings.update({
-              "API_KEY": self.API_KEY,
-              'template': template_name,
-       })
-       gpt_chat =  g.GPTChat(**settings)
+    Methods:
+        - select_template(template_name: str): selects a template from the template_selector, by name
+        - _make_chat_log: makes a ChatLog object from a template
+        - _make_gpt_chat: makes a GPTChat object from a template
+        - make_chat_log_and_gpt_chat: makes a ChatLog and GPTChat object from a template, returns a tuple of them
+    Example Usage:
+        template_name = template_selector.search_by_tag("gpt-4")[0]
+        factory = ChatLogAndGPTChatFactory(API_KEY)
+        factory.select_template(template_name)
+        chat_log, gpt_chat = factory.make_chat_log_and_gpt_chat()
+         
+    """
+
+    def __init__(self, API_KEY, template_selector: GetTemplates= template_selector  ):
+        self.API_KEY = API_KEY
+        self.template_selector = template_selector
+        self.selected_template = None
+        
+    def select_template(self, template_name: str) -> None:
+        self.selected_template = self.template_selector.get_template(template_name)
     
-    def make_chat_log_and_gpt_chat(self) -> tuple[ch.ChatLog, g.GPTChat]:
+    
+    def _make_chat_log(self,template: dict) -> cw.g.ch.ChatLog:
+        """Makes a ChatLog object from a template"""
+        settings: dict = template['chat_log']
+      
+        chat_log =cw.g.ch.ChatLog(**settings)
+        return chat_log
+    def _make_gpt_chat(self,  template: dict) -> cw.g.GPTChat:
+        """Makes a GPTChat object from a template"""
+        settings: dict  = template['gpt_chat']
+        settings.update({"API_KEY": self.API_KEY, 
+                        "template": template
+                        })
+        gpt_chat =  cw.g.GPTChat(**settings)
+        return gpt_chat
+       
+    
+    def make_chat_log_and_gpt_chat(self) -> tuple[cw.g.ch.ChatLog, cw.g.GPTChat]:
+        """Makes a ChatLog and GPTChat object from a template, returns a tuple of them"""
         if self.selected_template is None:
-            raise Exception("No template selected")
-        chat_log = self._make_chat_log(self.selected_template["chat_log"])
-        gpt_chat = self._make_gpt_chat(self.selected_template["gpt_chat"])
+            raise  NoTemplateSelectedError()
+        chat_log = self._make_chat_log(self.selected_template)
+        gpt_chat = self._make_gpt_chat(self.selected_template)
         return (chat_log, gpt_chat)
     
+class TestChatLogAndGPTChatFactory(unittest.TestCase):
+    def setUp(self):
+        self.factory = ChatLogAndGPTChatFactory(API_KEY)
+        self.template_selector = template_selector
+        self.test_template = template_selector.get_template("gpt-4_default")
+        self.test_template_name = 'gpt-4_default'
+        
+    def test_select_template(self):
+        """Tests that the select_template method works"""
+        template_name = self.factory.template_selector.search_templates_by_tag("gpt-4")[0]
+        self.factory.select_template(template_name)
+        self.assertIsNotNone(self.factory.selected_template)
+    def test_make_chat_log(self):
+        """Tests that the _make_chat_log method works"""
+        template_name = self.test_template_name
+        self.factory.select_template(template_name)
+        chat_log = self.factory._make_chat_log(self.test_template)
+        self.assertIsInstance(chat_log,cw.g.ch.ChatLog)
+    def test_make_gpt_chat(self):
+        """Tests that the _make_gpt_chat method works"""
+        template_name = self.test_template_name
+        self.factory.select_template(template_name)
+        gpt_chat = self.factory._make_gpt_chat(self.factory.selected_template)
+        self.assertIsInstance(gpt_chat, cw.g.GPTChat)
+    def test_make_chat_log_and_gpt_chat(self):
+        """Tests that the make_chat_log_and_gpt_chat method works"""
+        self.factory.select_template(self.test_template_name)
+        chat_log, gpt_chat  = self.factory.make_chat_log_and_gpt_chat()
+        self.assertIsInstance(gpt_chat, cw.g.GPTChat)
+        self.assertIsInstance(chat_log,cw.g.ch.ChatLog)
+    def tearDown(self):
+        del self.factory
+        
+if __name__ == "__main__":
+    unittest.main(argv=['first-arg-is-ignored'], exit=False)
+        
     
-factory = ChatLogAndGPTChatFactory(API_KEY)
-factory.select_template("gpt-4_default")
-chat_log, gpt_chat = factory.make_chat_log_and_gpt_chat()
-print(repr(chat_log))
-print(gpt_chat)
+    
+
