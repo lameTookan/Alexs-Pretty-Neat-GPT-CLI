@@ -149,7 +149,7 @@ class ChatLog:
         self._max_model_tokens = max_model_tokens
         self._max_completion_tokens = max_completion_tokens
         self._token_padding = token_padding
-        self.save_to_dict = SaveToDict(self)
+        self.save_to_dict = self.SaveToDict(self)
         self.save_to_file = self.SaveToFile(self, save_folder)
         self.model = model
         self.max_chat_tokens = None
@@ -346,7 +346,15 @@ class ChatLog:
         self.trimmed_chat_log.append(message)
         self.trimmed_chat_log_tokens += message.tokens
         self.trim_chat_log()
-   
+    @property
+    def assistant_message_obj(self):
+        """Returns the assistant message object"""
+        return self.make_message("assistant", self.assistant_message)
+    @assistant_message_obj.setter
+    def assistant_message_obj(self, value: Message):
+        if not isinstance(value, Message):
+            raise TypeError("Value must be a Message object")
+        self.add_message_obj(value)
     #helper functions to add messages to the chat log, takes a role and content, or a dictionary
     def add_message(self, role: str = None, content: str = None, message: dict = None):
         """Wrapper for add_message_obj, makes a message object from a role and content, can take a dictionary, or role and content"""
@@ -583,116 +591,116 @@ class ChatLog:
         return f"{constructor}\n{important_vars}"
 
 
-class SaveToDict:
-        """Class for saving and loading chat logs to a dict
-        Generally used for saving to a file using the SaveToFile class, however can be used for other purposes if needed
-        Attributes:
-            chat_log (ChatLog): The chatlog object to be saved
-        Methods:
-            save: Prepares a dict to be saved to a file or for use in other objects/functions, returns the dict
-            load: Loads a dict into the chat log
-            _check_save_dict: Checks that the dict to be loaded is valid, raises BadSaveDictError if not valid and/or missing required keys with datatypes
+    class SaveToDict:
+            """Class for saving and loading chat logs to a dict
+            Generally used for saving to a file using the SaveToFile class, however can be used for other purposes if needed
+            Attributes:
+                chat_log (ChatLog): The chatlog object to be saved
+            Methods:
+                save: Prepares a dict to be saved to a file or for use in other objects/functions, returns the dict
+                load: Loads a dict into the chat log
+                _check_save_dict: Checks that the dict to be loaded is valid, raises BadSaveDictError if not valid and/or missing required keys with datatypes
 
-        """
-        version = "1.0.0"
+            """
+            version = "1.0.0"
 
-        def __init__(self, chat_log: ChatLog):
-            self.chat_log = chat_log
+            def __init__(self, chat_log ):
+                self.chat_log = chat_log
 
-        def save(self) -> dict:
-            """Prepares a dict to be saved to a file or for use in other objects/functions"""
-            
-
-            self.chat_log.work_out_tokens()
-            save_dict = {
-                "metadata": {
-                    "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "length": len(self.chat_log.full_chat_log),
-                    "uuid": self.chat_log.id,
-                    "ChatLog version": self.chat_log.version,
-                    "SaveToDict version": self.version,
-
-
-                },
-                'max_chat_tokens': self.chat_log.max_chat_tokens,
-                'max_chat_messages': self.chat_log.max_chat_messages,
-                'max_model_tokens': self.chat_log.max_model_tokens,
-                'token_padding': self.chat_log.token_padding,
-                'max_completion_tokens': self.chat_log.max_completion_tokens,
-                'max_chat_tokens': self.chat_log.max_chat_tokens,
-                'full_chat_log': [message.data for message in self.chat_log.full_chat_log],
-                'trimmed_chat_log': [message.data for message in self.chat_log.trimmed_chat_log],
-                'trimmed_chat_log_tokens': self.chat_log.trimmed_chat_log_tokens,
-                'trimmed_messages': self.chat_log.trimmed_messages,
-                'sys_prompt': self.chat_log._sys_prompt,
-                'model': self.chat_log.model,
-                'wildcards': self.chat_log.system_prompt_wildcards,
-
+            def save(self) -> dict:
+                """Prepares a dict to be saved to a file or for use in other objects/functions"""
                 
 
+                self.chat_log.work_out_tokens()
+                save_dict = {
+                    "metadata": {
+                        "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "length": len(self.chat_log.full_chat_log),
+                        "uuid": self.chat_log.id,
+                        "ChatLog version": self.chat_log.version,
+                        "SaveToDict version": self.version,
 
-            }
-            size = len(json.dumps(save_dict))
-            save_dict['metadata']['size'] = size
-            del size
-            return save_dict
 
-           
+                    },
+                    'max_chat_tokens': self.chat_log.max_chat_tokens,
+                    'max_chat_messages': self.chat_log.max_chat_messages,
+                    'max_model_tokens': self.chat_log.max_model_tokens,
+                    'token_padding': self.chat_log.token_padding,
+                    'max_completion_tokens': self.chat_log.max_completion_tokens,
+                    'max_chat_tokens': self.chat_log.max_chat_tokens,
+                    'full_chat_log': [message.data for message in self.chat_log.full_chat_log],
+                    'trimmed_chat_log': [message.data for message in self.chat_log.trimmed_chat_log],
+                    'trimmed_chat_log_tokens': self.chat_log.trimmed_chat_log_tokens,
+                    'trimmed_messages': self.chat_log.trimmed_messages,
+                    'sys_prompt': self.chat_log._sys_prompt,
+                    'model': self.chat_log.model,
+                    'wildcards': self.chat_log.system_prompt_wildcards,
 
-        def _check_save_dict(self, save_dict: dict):
-            """Checks that the save dict is valid, raises BadSaveDictError if not"""
-            required_keys = {
-                "max_chat_tokens": int,
-                "max_chat_messages": int,
-                "max_model_tokens": int,
-                "token_padding": int,
-                "max_completion_tokens": int,
-                "model": str,
-                "sys_prompt": str,
-                "wildcards": dict,
-                "full_chat_log": list,
-                "trimmed_chat_log": list,
-                "trimmed_chat_log_tokens": int,
-                "trimmed_messages": int,
-            }
-            if not isinstance(save_dict, dict):
-                raise BadSaveDictError(
-                    "Save dict must be a dict, got {}".format(type(save_dict))
-                )
+                    
+
+
+                }
+                size = len(json.dumps(save_dict))
+                save_dict['metadata']['size'] = size
+                del size
+                return save_dict
+
             
-            for key, datatype in required_keys.items():
-                if key not in save_dict:
+
+            def _check_save_dict(self, save_dict: dict):
+                """Checks that the save dict is valid, raises BadSaveDictError if not"""
+                required_keys = {
+                    "max_chat_tokens": int,
+                    "max_chat_messages": int,
+                    "max_model_tokens": int,
+                    "token_padding": int,
+                    "max_completion_tokens": int,
+                    "model": str,
+                    "sys_prompt": str,
+                    "wildcards": dict,
+                    "full_chat_log": list,
+                    "trimmed_chat_log": list,
+                    "trimmed_chat_log_tokens": int,
+                    "trimmed_messages": int,
+                }
+                if not isinstance(save_dict, dict):
                     raise BadSaveDictError(
-                        "Save dict missing required key {}".format(key)
+                        "Save dict must be a dict, got {}".format(type(save_dict))
                     )
-                if not isinstance(save_dict[key], datatype):
-                    raise BadSaveDictError(
-                        "Save dict key {} must be of type {}, got {}".format(
-                            key, datatype, type(save_dict[key])
+                
+                for key, datatype in required_keys.items():
+                    if key not in save_dict:
+                        raise BadSaveDictError(
+                            "Save dict missing required key {}".format(key)
                         )
-                    )
-            
+                    if not isinstance(save_dict[key], datatype):
+                        raise BadSaveDictError(
+                            "Save dict key {} must be of type {}, got {}".format(
+                                key, datatype, type(save_dict[key])
+                            )
+                        )
+                
 
-        def load(self, save_dict: dict) -> None:
-            """Loads a save_dict into the chat log, by setting the chat log attributes from the save dict"""
-            self._check_save_dict(save_dict)
-            model = save_dict["model"]
-            self.chat_log.id = save_dict["metadata"]["uuid"]
-            self.chat_log.model = model
-            self.chat_log.max_chat_tokens = save_dict["max_chat_tokens"]
-            self.chat_log.max_chat_messages = save_dict["max_chat_messages"]
-            self.chat_log.max_model_tokens = save_dict["max_model_tokens"]
-            self.chat_log.token_padding = save_dict["token_padding"]
-            self.chat_log.max_completion_tokens = save_dict["max_completion_tokens"]
-            self.chat_log.model = save_dict["model"]
-            self.chat_log.sys_prompt = save_dict["sys_prompt"]
-            self.chat_log.system_prompt_wildcards = save_dict["wildcards"]
-            self.chat_log.full_chat_log = [ self.chat_log.make_message(message = msg ) for msg in save_dict["full_chat_log"] ]
-            self.chat_log.trimmed_chat_log = [ self.chat_log.make_message(message = msg ) for msg in save_dict["trimmed_chat_log"]]
-            self.chat_log.trimmed_chat_log_tokens = save_dict["trimmed_chat_log_tokens"]
-            self.chat_log.trimmed_messages = save_dict["trimmed_messages"]
-            self.chat_log.is_loaded = True
-            self.chat_log.work_out_tokens()
+            def load(self, save_dict: dict) -> None:
+                """Loads a save_dict into the chat log, by setting the chat log attributes from the save dict"""
+                self._check_save_dict(save_dict)
+                model = save_dict["model"]
+                self.chat_log.id = save_dict["metadata"]["uuid"]
+                self.chat_log.model = model
+                self.chat_log.max_chat_tokens = save_dict["max_chat_tokens"]
+                self.chat_log.max_chat_messages = save_dict["max_chat_messages"]
+                self.chat_log.max_model_tokens = save_dict["max_model_tokens"]
+                self.chat_log.token_padding = save_dict["token_padding"]
+                self.chat_log.max_completion_tokens = save_dict["max_completion_tokens"]
+                self.chat_log.model = save_dict["model"]
+                self.chat_log.sys_prompt = save_dict["sys_prompt"]
+                self.chat_log.system_prompt_wildcards = save_dict["wildcards"]
+                self.chat_log.full_chat_log = [ self.chat_log.make_message(message = msg ) for msg in save_dict["full_chat_log"] ]
+                self.chat_log.trimmed_chat_log = deque([ self.chat_log.make_message(message = msg ) for msg in save_dict["trimmed_chat_log"]])
+                self.chat_log.trimmed_chat_log_tokens = save_dict["trimmed_chat_log_tokens"]
+                self.chat_log.trimmed_messages = save_dict["trimmed_messages"]
+                self.chat_log.is_loaded = True
+                self.chat_log.work_out_tokens()
 
 def count_tokens(str, model):
     encoding = tiktoken.encoding_for_model(model)

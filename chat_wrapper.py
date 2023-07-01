@@ -78,7 +78,7 @@ class ChatWrapper:
         self.chat_log = chat_log
        
         if not self.gpt_chat is None:
-            self.gpt_chat.return_type = "string"
+            self.gpt_chat.return_type = "Message"
         
             
         self.uuid = str(uuid.uuid4())
@@ -142,10 +142,12 @@ class ChatWrapper:
     def run_chat(self) -> None:
         """Sends chatlog to API and adds response to chatlog, uses the GPTChat object's make_api_call method. If an error occurs while making an API call, the chatbot will be saved to a file with the current time as the name and the error will be raised"""
         self._check_setup()
+        self.gpt_chat.return_type = "string"
         try:
             response = self.gpt_chat.make_api_call(
                 self.chat_log.get_finished_chat_log()
             )
+            self.chat_log.assistant_message = response
         except openai.OpenAIError as e:
             print("A fatal error occurred while making an API call to OpenAI's API")
             save_name = (
@@ -156,8 +158,14 @@ class ChatWrapper:
                 print("Chatbot saved successfully")
             raise e
 
-        self.chat_log.assistant_message = response
-
+       
+    def get_string_from_response(self, response: g.ch.Message | dict | str ) -> str:
+        if isinstance(response, str):
+            return response
+        elif isinstance(response, dict):
+            return response["content"]
+        elif isinstance(response, g.ch.Message):
+            return response.content
     def add_GPTChat_object(self, gpt_chat: g.GPTChat) -> None:
         """Adds a GPTChat object to the chatbot"""
         if not isinstance(gpt_chat, g.GPTChat):
@@ -182,7 +190,7 @@ class ChatWrapper:
         """Returns the assistant message"""
         self._check_setup()
 
-        return self.chat_log.assistant_message.pretty()
+        return self.chat_log.assistant_message
 
     @assistant_message.setter
     def assistant_message(self, message: str) -> None:
@@ -299,10 +307,12 @@ class ChatWrapper:
             if API_KEY is None:
                 API_KEY = self.chat_wrapper.API_KEY
             self.chat_log = g.ch.ChatLog()
-            self.chat_log.load_save_dict(save_dict["chat_log"])
+            self.chat_wrapper.add_ChatLog_object(self.chat_log)
+            self.chat_wrapper.chat_log.save_to_dict.load(save_dict["chat_log"])
+            
             self.gpt_chat = g.GPTChat(API_KEY=API_KEY)
             self.gpt_chat.load_save_dict(save_dict["gpt_chat"])
-
+            self.chat_wrapper.add_GPTChat_object(self.gpt_chat)
             self.chat_wrapper.is_loaded = True
             self.chat_wrapper.is_setup = True
 

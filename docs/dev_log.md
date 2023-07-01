@@ -115,6 +115,8 @@ Today, I had a feeling that I wasn't accomplishing much, but I did a lot of work
 
 ## Day 6 of this project (June 30, 2023)
 
+### Progress Today
+
 - Made test class for  and debugged `ChatWrapper`,
 - Bunch of cleaning up
   - Better docstrings
@@ -144,7 +146,7 @@ Today, I had a feeling that I wasn't accomplishing much, but I did a lot of work
 - Unittest mocking is a honking great idea! We should do more of that
 - OOP is a lot of work but it also means I'll be able to reuse much of this and adding new features is fairly easy
 
-## To Do
+### To Do
 
 - README
 - The menu system

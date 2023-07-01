@@ -242,7 +242,8 @@ class GetTemplates:
                 item = name
             result.append(item)
             return result
-        
+    def get_all_templates(self) -> dict:
+        return self.templates
     def get_template_info(self, template_name: str) -> dict:
         result = {}
         try: 
