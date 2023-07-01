@@ -153,3 +153,9 @@ cython_debug/
 super_secret.py
 old.py
 chat_log_saves/
+chat_bot_saves/
+old2.txt
+Intermediete_Chatbot.code-workspace
+chatbot_saves/
+.vscode/
+```

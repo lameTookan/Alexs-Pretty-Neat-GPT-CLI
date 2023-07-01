@@ -1,18 +1,18 @@
-import sys
-import unittest
-import os
 import datetime
+import json
+import os
+import random
+import sys
 import time
+import unittest
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
+
 import openai
 import tiktoken
-import json
-import random
-from templates import template_selector, GetTemplates
 
 import chat_wrapper as cw
-from typing import List, Dict, Tuple, Set, Union, Optional, Any
-
-from super_secret import OPENAI_API_KEY as API_KEY
+from settings import API_KEY
+from templates import GetTemplates, template_selector
 
 
 class NoTemplateSelectedError(Exception):
@@ -48,7 +48,7 @@ class ChatLogAndGPTChatFactory:
     def __init__(self, API_KEY, template_selector: GetTemplates= template_selector  ):
         self.API_KEY = API_KEY
         self.template_selector = template_selector
-        self.selected_template = None
+        self.selected_template = template_selector.get_template("gpt-4_default")
         
     def select_template(self, template_name: str) -> None:
         self.selected_template = self.template_selector.get_template(template_name)
@@ -63,10 +63,8 @@ class ChatLogAndGPTChatFactory:
     def _make_gpt_chat(self,  template: dict) -> cw.g.GPTChat:
         """Makes a GPTChat object from a template"""
         settings: dict  = template['gpt_chat']
-        settings.update({"API_KEY": self.API_KEY, 
-                        "template": template
-                        })
-        gpt_chat =  cw.g.GPTChat(**settings)
+        
+        gpt_chat =  cw.g.GPTChat(API_KEY=self.API_KEY, template=template, **settings)
         return gpt_chat
        
     
@@ -117,3 +115,52 @@ if __name__ == "__main__":
     
     
 
+class ChatWrapperFactory:
+    """A factory class for making ChatWrapper objects from a template
+    Methods: 
+        select_template(template_name: str): selects a template from the template_selector, by name
+        search_templates_by_tag(tag: str, return_type = 'name'): searches for templates by tag, returns a list of template names or templates
+        make_chat_wrapper(template: dict): makes a ChatWrapper object from a template
+    """
+    def __init__(self, API_KEY = API_KEY, template_selector: GetTemplates = template_selector, ) -> None:
+        self.template_selector = template_selector
+        self.selected_template = self.template_selector.get_template("gpt-4_default")
+        self.chat_and_gpt_factory = ChatLogAndGPTChatFactory(API_KEY, template_selector)
+        self.api_key = API_KEY
+        
+    def select_template(self, template_name: str) -> None:
+        """Selects a template from the template_selector, by name, will raise a TemplateNotFoundError if the template is not found"""
+        self.selected_template = self.template_selector.get_template(template_name)
+        self.chat_and_gpt_factory.select_template(template_name)
+    def search_templates_by_tag(self, tag: str, return_type = 'name') -> List[str] | List[dict]:
+        """Searches for templates by tag and returns a list of them, either as the names(keys) or the templates themselves(values). If none are found, returns an empty list"""
+        return self.template_selector.search_templates_by_tag(tag)
+    def make_chat_log_and_gpt_chat(self) -> tuple[cw.g.ch.ChatLog, cw.g.GPTChat]:
+        """Using the selected template, makes a ChatLog and GPTChat object from a template, returns a tuple of them"""
+        return self.chat_and_gpt_factory.make_chat_log_and_gpt_chat()
+    def select_default_for_model(self, model: str) -> None:
+        
+        try: 
+            self.select_template(f"{model}_default")
+        except template_selector.TemplateNotFoundError:
+            print(f"Template {model}_default not found, selecting gpt-4_default")
+            self.select_template("gpt-4_default")
+        
+    def make_chat_wrapper(self, template_name: str = None) -> cw.ChatWrapper:
+        """Makes a ChatWrapper object from a template and returns it"""
+        if template_name is not None:
+            self.select_template(template_name)
+        if template_name is None and self.selected_template is None:
+            raise NoTemplateSelectedError()
+        chat_log, gpt_chat = self.make_chat_log_and_gpt_chat()
+        chat_wrapper = cw.ChatWrapper(API_KEY= self.api_key,chat_log=chat_log, gpt_chat=gpt_chat)
+        
+        
+        return chat_wrapper
+
+
+wrapper_factory = ChatWrapperFactory(API_KEY, template_selector)
+
+if __name__ == "__main__":
+    wrapper = wrapper_factory.make_chat_wrapper()
+    print(wrapper.__repr__())

@@ -1,18 +1,29 @@
-import sys
-import os
 import datetime
+import json
+import os
+import random
+import sys
+
 import openai
 import tiktoken
-import json
-import random
-import ChatHistory as ch
-import GPTchat as g
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from settings import API_KEY, DEFAULT_MODEL, DEFAULT_TEMPLATE_NAME
+
+import object_factory as fact
 
 
 def format_dict_as_string(d: dict, delim: str = ": ") -> str:
     result = []
     for key, value in d.items():
-        result.append(f"{key}{delim}{value}")
+        if isinstance(value, dict):
+            value =[key]+ [f"    {k}{delim}{v}" for k, v in value.items()]
+            value = "\n".join(value)
+        elif isinstance(value, list) or isinstance(value, tuple) or isinstance(value, set):
+            value = [key] + [f"    {v}" for v in value]
+            value = "\n".join(value)
+        else:
+            value = (f"{key}{delim}{value}")
+        result.append(value)
     return "\n".join(result)
 
 
@@ -21,6 +32,11 @@ def toggle(input: bool):
         return False
     else:
         return True
+def bool_to_yes(val: bool, y = "yes", n = "no") -> str:
+    if val:
+        return y
+    else:
+        return n
 
 
 def chunk_input(ini_message: str = "Type enter twice when done.", input_message="> "):
@@ -47,11 +63,11 @@ def confirm(message: str = "Are you sure?", y_n="(y/n)", y="y", n="n") -> bool:
 
 
 class ChatLoop:
-    def __init__(self, chat_wrapper: g.ChatWrapper, chunking=True):
-        self.chat_wrapper = chat_wrapper
+    def __init__(self, chat_wrapper: fact.cw.ChatWrapper, chunking=True):
+        self.chat_wrapper: fact.cw.ChatWrapper = chat_wrapper
         self.chunking = chunking
-        self.chat_log = chat_wrapper.chat_log
-        self.gpt_chat = chat_wrapper.gpt_chat
+        self.chat_log: fact.cw.g.ch.ChatLog = chat_wrapper.chat_log
+        self.gpt_chat: fact.cw.g.GPTChat = chat_wrapper.gpt_chat
 
     def run_chat_loop(self):
         msg_list = [
@@ -188,7 +204,7 @@ class ChatLoop:
                     value = input(f"Enter a value for {param}: ")
                     try:
                         self.gpt_chat.modify_params()
-                    except g.BadChatCompletionParams as e:
+                    except fact.cw.g.BadChatCompletionParams as e:
                         print("Invalid Parameter. More info:")
                         print(e)
                         continue
@@ -196,17 +212,38 @@ class ChatLoop:
 
 
 class MainMenu:
-    def __init__(self):
-        pass
-
-    def _make_chat_log(self):
-        pass
+    def __init__(self, API_KEY = API_KEY, factory: fact.ChatWrapperFactory = fact.wrapper_factory):
+        self.API_KEY = API_KEY
+        self.factory: fact.ChatWrapperFactory = factory
+        self.selected_template_name = DEFAULT_TEMPLATE_NAME
+        self.factory.select_template(self.selected_template_name)
+        self.is_default_template = True
+        self.chat_wrapper: fact.cw.g.GPTChat = None
+        self.is_ready = False
+        self.template_selector = self.factory.template_selector
+    def _get_template_info(self, template_name: str) -> str:
+        info = self.template_selector.get_template_info(template_name)
+        for key, value in info.items():
+            print(f"{key}: {value}")
+    def template_menu(self) -> None:
+        msg_list = [
+            "Welcome to the template menu!",
+            "Type 'quit' to quit(and return to main menu)",
+            "Type 'help' to see this message again",
+            "Type list to see a list of all templates",
+            "Type 'set {template_name}' to set the template",
+            "Type 'info {template_name}' to see info about a specific template",
+            "Type 'current' to see the current template",
+        ]
+        current_temp_info = [
+            "Current Selected Template Name: " + self.selected_template_name,
+            "Is Default Template: " + bool_to_yes(self.is_default_template),
+            "Current Template Info:",
+            
+            
+        ]
 
     def _make_chat_wrapper(self):
         pass
 
-    def _make_gpt_chat(self):
-        pass
-
-    def _make_chat_loop(self):
-        pass
+    

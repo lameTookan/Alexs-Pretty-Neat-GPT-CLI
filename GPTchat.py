@@ -1,14 +1,18 @@
-import ChatHistory as ch
-import openai
-import os
-import json
-
-
-from typing import List, Dict, Union, Any, Optional
-import uuid
 import datetime
+import json
+import os
 import time
+import unittest
+import uuid
+from typing import Any, Dict, List, Optional, Union
+from unittest import mock as mock
+from unittest.mock import Mock, patch
+
+import openai
+
+import ChatHistory as ch
 import super_secret
+
 
 API_KEY = super_secret.OPENAI_API_KEY
 
@@ -125,6 +129,13 @@ class GPTChat:
         "dict",
         "Message",
     }
+    # If you would like to modify other parameters, you can modify the .make_api_call() method directly. There are others, but they are beyond the scope of this project
+    # ie this doesn't support the stream parameter, only one response is returned at a time, and logit_bias is not supported
+    # NOTE MOVE THIS TO a dedicated documentation file for this class 
+    # should be fairly easy to add support for these parameters, if you want to. Add a setter and getter for the parameter, and then modify the make_api_call method to include the parameter the same as the other parameters
+    # also, if you want to add support for the stream parameter, you would need to do some serious refactoring of the make_api_call method, as it would need to be able to handle multiple responses at once, as well as the ChatLog class, and the menu system. 
+    # Honestly would probably recommend starting from scratch if you want to add support for the stream parameter, I am not yet familiar enough with server events to do it myself yet
+    # this isn't called Intermediate Chatbot for nothing!
     possible_optional_params = {
         "max_tokens",
         "temperature",
@@ -146,9 +157,9 @@ class GPTChat:
 
     def __init__(
         self,
-        API_KEY: str,
+        API_KEY: str = None,
         return_type: str = "string",
-        temperature: float = 1,
+        temperature: float = None,
         model_name: str = "gpt-4",
         max_tokens: int = None,
         top_p: float = None,
@@ -156,11 +167,12 @@ class GPTChat:
         presence_penalty: float = None,
         template: dict = None,
     ):
+        # for use in the __repr__ method
         self.constructor_params = {
             "temperature": temperature,
             "model_name": model_name,
             "max_tokens": max_tokens,
-            "API_KEY": API_KEY,
+            "API_KEY": "Exists" if API_KEY else "Does not exist",
             "top_p": top_p,
             "frequency_penalty": frequency_penalty,
             "presence_penalty": presence_penalty,
@@ -186,6 +198,7 @@ class GPTChat:
         self.modify_params(**settings)
 
     def __repr__(self):
+        """Returns a string representation of the object, used for debugging"""
         constructor = (
             "GPTChat("
             + ", ".join(
@@ -438,7 +451,7 @@ class GPTChat:
             except openai.OpenAIError as e:
                 if retries == 0:
                     raise e
-                    break
+                    
                 print(
                     "Encountered the following error while making an API call to OpenAI's API"
                 )
@@ -481,13 +494,16 @@ class GPTChat:
                 )
         return save_dict
 
-    def load_save_dict(self, save_dict: dict) -> None:
+    def load_save_dict(self, save_dict: dict, API_KEY = None) -> None:
         """Loads a save dict into the GPTChat object"""
         save_dict = self._verify_save_dict(save_dict)
         self.temperature = save_dict["temperature"]
         self.model_name = save_dict["model_name"]
         self.top_p = save_dict["top_p"]
         self.frequency_penalty = save_dict["frequency_penalty"]
+        self.api_key = API_KEY if API_KEY is not None else self.api_key
+        if self.api_key is None:
+            raise ValueError("Must either pass an API_KEY here, or set it in the constructor")
         self.presence_penalty = save_dict["presence_penalty"]
         self.return_type = save_dict["return_type"]
 
@@ -500,51 +516,103 @@ class TestGPTChat(unittest.TestCase):
         self.gpt_chat = GPTChat(API_KEY=API_KEY)
 
     def test_temperature_setter_and_getter(self):
+        """Tests that the temperature setter and getter work as expected"""
         self.gpt_chat.temperature = 1.5
         self.assertEqual(self.gpt_chat.temperature, 1.5)
 
     def test_model_name_setter_and_getter(self):
+        """Tests that the model_name setter and getter work as expected"""
         self.gpt_chat.model_name = "gpt-3"
         self.assertEqual(self.gpt_chat.model_name, "gpt-3")
 
     def test_max_tokens_setter_and_getter(self):
+        """Tests that the max_tokens setter and getter work as expected"""
         self.gpt_chat.max_tokens = 500
         self.assertEqual(self.gpt_chat.max_tokens, 500)
 
     def test_top_p_setter_and_getter(self):
+        """Tests that the top_p setter and getter work as expected"""
         self.gpt_chat.top_p = 0.9
         self.assertEqual(self.gpt_chat.top_p, 0.9)
 
     def test_frequency_penalty_setter_and_getter(self):
+        """Tests that the frequency_penalty setter and getter work as expected"""
         self.gpt_chat.frequency_penalty = 0.5
         self.assertEqual(self.gpt_chat.frequency_penalty, 0.5)
 
     def test_presence_penalty_setter_and_getter(self):
+        """Tests that the presence_penalty setter and getter work as expected"""
         self.gpt_chat.presence_penalty = 0.5
         self.assertEqual(self.gpt_chat.presence_penalty, 0.5)
 
     def test_return_type_setter_and_getter(self):
+        """Tests that the return_type setter and getter work as expected"""
         self.gpt_chat.return_type = "dict"
         self.assertEqual(self.gpt_chat.return_type, "dict")
 
     def test_modify_params(self):
+        """Tests that modify_params modifies the parameters as expected"""
         self.gpt_chat.modify_params(temperature=0.8, max_tokens=300)
         self.assertEqual(self.gpt_chat.temperature, 0.8)
         self.assertEqual(self.gpt_chat.max_tokens, 300)
 
     def test_get_params(self):
+        """Tests that get_params returns a dictionary of the current parameters"""
         self.gpt_chat.modify_params(temperature=0.8, max_tokens=300)
         params = self.gpt_chat.get_params()
         self.assertEqual(params["temperature"], 0.8)
         self.assertEqual(params["max_tokens"], 300)
 
     def test_load_save_dict(self):
+        """Tests that load_save_dict loads a save dict correctly"""
         save_dict = self.gpt_chat.make_save_dict()
         test_chat = GPTChat(API_KEY=API_KEY)
         GPTChat.load_save_dict(test_chat, save_dict)
         for key, value in save_dict.items():
             with self.subTest(key=key):
                 self.assertEqual(getattr(test_chat, key), value)
+    @unittest.mock.patch.object(openai, "ChatCompletion")
+    def test_make_api_call(self, mock_chatcompletion):
+        """
+        This test case is special as I do not yet understand how mocking works. So, in order to test this functionality correctly, I used GPT-4 to help me out. 
+        Everything else in this project is written by me, with the only help coming from the simple GitHub Copilot(Not the more advanced one with a chatbot, just the simple one that suggests code inline)
+        I have made a point to not even allow it to suggest code I do not understand, just boilerplate code to save a little time, as this project is meant to show off my skills as a programmer, not AIs
+        """
+        # Set up the mock
+        mock_choice = unittest.mock.Mock()
+        mock_choice.message = {'content': 'Test message'}
+        mock_chatcompletion.create.return_value = unittest.mock.Mock(choices=[mock_choice])
+        
+        chat_log = [{'role': 'system', 'content': 'Your chat'},
+                    {'role': 'user', 'content': 'Hello GPT-3'}]
+        # did do some reworking to add parameterization to this test case, what I got from GPT-4 did not have that
+        
+        test_cases = [
+            {"temperature": 1, "max_tokens": 3000, "top_p": 0.9, "frequency_penalty": 0.5, "presence_penalty": 0.5, }, 
+            {"temperature": 0.8, "max_tokens": 300, "top_p": 1, "frequency_penalty": 0.5, "presence_penalty": 0.4, },
+            {"temperature": 1}
+        ] 
+        for test_args in test_cases:
+            with self.subTest(test_args=test_args):      
+                gpt_chat = GPTChat(API_KEY=API_KEY, **test_args)
+                response = gpt_chat.make_api_call(chat_log)
+            
+                # Check if create method was called once
+                mock_chatcompletion.create.assert_called_once()
+                expected_kwargs = {'model': 'gpt-4', 'messages': chat_log}
+                expected_kwargs.update(test_args)
+                # Check if the arguments were correct
+                args, kwargs = mock_chatcompletion.create.call_args
+                self.assertDictEqual(kwargs, expected_kwargs)
+            
+                # Check if the response is correct
+                self.assertEqual(response, 'Test message')
+                mock_chatcompletion.create.reset_mock()
+        # wow the zen of python should say mocking is a honking great idea let's do more of it
+        # good learning experience, still think this is one of those topics I'll need to devote a full day to understand it fully
+
+    def tearDown(self) -> None:
+        del self.gpt_chat
 
 
 if __name__ == "__main__":

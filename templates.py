@@ -1,5 +1,5 @@
 import json
-from typing import List, Dict, Tuple, Set, Union, Optional, Any
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 templates = {
     "gpt-4_default": {
@@ -78,28 +78,11 @@ def get_template_from_file(file_path: str = "templates.json") -> dict:
     return templates
 
 
-class TemplateNotFoundError(Exception):
-    def __init__(self, message=None, template_name: str = None):
-        if message is None:
-            message = "Template not found"
-        if template_name is not None:
-            message = f"{message} \n Template {template_name} not found"
 
-    def __str__(self):
-        return self.message
-
-
-class BadTemplateError(Exception):
-    def __init__(self, message: str = None):
-        if message is None:
-            message = "Template is not valid"
-        self.message = message
-
-    def __str__(self):
-        return self.message
 
 
 class GetTemplates:
+    
     """Class to manage templates and provide a simple interface to get templates
     Methods:
         __init__(templates: dict) -> None
@@ -138,7 +121,7 @@ class GetTemplates:
     def get_template(self, template_name: str) -> dict:
         """Get a template by name"""
         if template_name not in self.templates:
-            raise TemplateNotFoundError(template_name=template_name)
+            raise self.TemplateNotFoundError(template_name=template_name)
         return self.templates[template_name]
 
     def search_templates_by_tag(
@@ -167,7 +150,7 @@ class GetTemplates:
     def _verify_templates(self, templates: dict) -> dict:
         """Verify that a template is valid, raises BadTemplateError if not. Return the template if valid"""
         if not isinstance(templates, dict):
-            raise BadTemplateError("Templates must be a dict")
+            raise self.BadTemplateError("Templates must be a dict")
 
         if not self.required_top_level_keys == set(templates.keys()):
             for template_name, template in templates.items():
@@ -198,40 +181,40 @@ class GetTemplates:
         }
 
         if not isinstance(template, dict):
-            raise BadTemplateError(f"Template '{template_name}' must be a dict")
+            raise self.BadTemplateError(f"Template '{template_name}' must be a dict")
         if self.required_top_level_keys != set(template.keys()):
             msg = f"Template '{template_name}' must have the following keys: {self.required_top_level_keys}, missing {self.required_top_level_keys.symmetric_difference( set(template.keys()))} "
-            raise BadTemplateError(msg)
+            raise self.BadTemplateError(msg)
         if not isinstance(template["chat_log"], dict):
-            raise BadTemplateError(
+            raise self.BadTemplateError(
                 f"'chat_log' in template '{template_name}' must be a dict"
             )
 
         if not isinstance(template["gpt_chat"], dict):
-            raise BadTemplateError(
+            raise self.BadTemplateError(
                 f"'gpt_chat' in template '{template_name}' must be a dict"
             )
 
         chat_dif = set(template["chat_log"].keys()) - allowed_chat_log_keys
 
         if len(chat_dif) > 0:
-            raise BadTemplateError(
+            raise self.BadTemplateError(
                 f"'chat_log' keys in template '{template_name}' must be one of {allowed_chat_log_keys}. Got {chat_dif}"
             )
 
         gpt_dif = set(template["gpt_chat"].keys()) - allowed_gpt_chat_keys
         if len(gpt_dif) > 0:
-            raise BadTemplateError(
+            raise self.BadTemplateError(
                 f"'gpt_chat' keys in template '{template_name}' must be one of {allowed_gpt_chat_keys}. Got {gpt_dif}"
             )
 
         if not isinstance(template["description"], str):
-            raise BadTemplateError(
+            raise self.BadTemplateError(
                 f"'description' in template '{template_name}' must be a str"
             )
 
         if not isinstance(template["tags"], list):
-            raise BadTemplateError(
+            raise self.BadTemplateError(
                 f"'tags' in template '{template_name}' must be a list"
             )
 
@@ -244,13 +227,53 @@ class GetTemplates:
         if part not in allowed_parts:
             raise ValueError(f"part must be one of {allowed_parts}")
         if template_name not in self.templates.keys():
-            raise TemplateNotFoundError(template_name=template_name)
+            raise self.TemplateNotFoundError(template_name=template_name)
         return self.templates[template_name][part]
-
+    def get_all_templates_names(self, include_tags: bool = False, include_descriptions: bool = False) -> list[str] | list[dict]:
+        result = []
+        for name in self.templates.keys():
+            if include_tags or include_descriptions:
+                item = {"name": name}
+                if include_tags:
+                    item.update({"tags": self.templates[name]["tags"]})
+                if include_descriptions:
+                    item.update({"description": self.templates[name]["description"]})
+            else:
+                item = name
+            result.append(item)
+            return result
+        
+    def get_template_info(self, template_name: str) -> dict:
+        result = {}
+        try: 
+            template = self.get_template(template_name)
+            result.update({"name": template_name, "description": template["description"], "tags": template["tags"]})
+        except self.TemplateNotFoundError:
+            result = {"name": template_name, "error": "Template not found"}
+        return result
+            
     def get_template(self, template_name):
         if template_name not in self.templates.keys():
-            raise TemplateNotFoundError(template_name=template_name)
+            raise self.TemplateNotFoundError(template_name=template_name)
         return self.templates[template_name]
 
+    class TemplateNotFoundError(Exception):
+        def __init__(self, message=None, template_name: str = None):
+            if message is None:
+                message = "Template not found"
+            if template_name is not None:
+                message = f"{message} \n Template {template_name} not found"
 
+        def __str__(self):
+            return self.message
+
+
+    class BadTemplateError(Exception):
+        def __init__(self, message: str = None):
+            if message is None:
+                message = "Template is not valid"
+            self.message = message
+
+        def __str__(self):
+            return self.message
 template_selector = GetTemplates(templates)

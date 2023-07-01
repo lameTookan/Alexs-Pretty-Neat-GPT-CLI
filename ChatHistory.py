@@ -1,12 +1,13 @@
-import tiktoken
-
-from collections import namedtuple, UserString, UserList, UserDict, deque, namedtuple
 import datetime
-from EncodeMessage import EncodeMessage, BadMessageError, EncodedMessage
-import unittest
 import json
 import os
+import unittest
 import uuid
+from collections import UserDict, UserList, UserString, deque, namedtuple
+
+import tiktoken
+
+from EncodeMessage import BadMessageError, EncodedMessage, EncodeMessage
 
 
 class NoSystemPromptError(Exception):
@@ -60,7 +61,8 @@ class Message(UserDict):
 
 class ChatLog:
     system_prompt_wildcards = {
-        "date": {"value": "__DATE__", "description": "The current date and time"}
+        "date": {"value": "__DATE__", "description": "The current date and time"},
+        "model": {"value": "__MODEL__", "description": "The model used to encode the message"}
     }
     
     """
@@ -115,7 +117,7 @@ class ChatLog:
     Dependencies:
         Message class, Tiktoken module
     """
-    version = "1.0.0"
+    version = "1.0.1"
 
     def __init__(
         self,
@@ -144,9 +146,9 @@ class ChatLog:
             "token_padding": token_padding,
         }
         self.id = str(uuid.uuid4())
-        self.max_model_tokens = max_model_tokens
-        self.max_completion_tokens = max_completion_tokens
-        self.token_padding = token_padding
+        self._max_model_tokens = max_model_tokens
+        self._max_completion_tokens = max_completion_tokens
+        self._token_padding = token_padding
         self.save_to_dict = SaveToDict(self)
         self.save_to_file = self.SaveToFile(self, save_folder)
         self.model = model
@@ -193,6 +195,36 @@ class ChatLog:
                 raise BadMessageError("Wildcard values must have a value key")
             if "description" not in value:
                 raise BadMessageError("Wildcard values must have a description key")
+    @property
+    def max_model_tokens(self)-> int:
+        
+        return self._max_model_tokens
+    @max_model_tokens.setter
+    def max_model_tokens(self, value: int):
+        if not isinstance(value, int):
+            raise TypeError("max_model_tokens must be an integer")
+        self._max_model_tokens = value
+        self.work_out_tokens()
+    @property
+    def max_completion_tokens(self)-> int:
+        return self._max_completion_tokens
+    @max_completion_tokens.setter
+    def max_completion_tokens(self, value: int):
+        if not isinstance(value, int):
+            raise TypeError("max_completion_tokens must be an integer")
+        self._max_completion_tokens = value
+        self.work_out_tokens()
+    @property
+    def token_padding(self)-> int:
+        return self._token_padding
+    @token_padding.setter
+    def token_padding(self, value: int):
+        if not isinstance(value, int):
+            raise TypeError("token_padding must be an integer")
+        self._token_padding = value
+        self.work_out_tokens()
+        
+    
 
     def set_token_info(
         self,
@@ -236,7 +268,7 @@ class ChatLog:
         self._check_wildcards(wildcards)
         self.system_prompt_wildcards.update(wildcards)
 
-    def _add_wildcards(self, string):
+    def _add_wildcards(self, string: str) -> str:
         """Adds wildcards to the system prompt"""
         wild_cards = {
             key: value["value"] for key, value in self.system_prompt_wildcards.items()
@@ -244,6 +276,8 @@ class ChatLog:
         for key, value in wild_cards.items():
             if value == "__DATE__":
                 wild_cards[key] = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+            if value == "__MODEL__":
+                wild_cards[key] = self.model
 
         return string.format(**wild_cards)
 
@@ -253,24 +287,32 @@ class ChatLog:
 
     def work_out_tokens(self):
         """Works out the number of tokens allowed for the chat log"""
-        self._check_sys_prompt()
-        self.sys_prompt_message = self.make_message("system", self.sys_prompt)
-        self.sys_prompt_tokens = self.sys_prompt_message.tokens
+        if  self._sys_prompt is not  None:
+            self.sys_prompt_message = self.make_message("system", self.sys_prompt)
+            self.sys_prompt_tokens = self.sys_prompt_message.tokens
+        else:
+            self.sys_prompt_tokens = 0
+        
         self.max_chat_tokens = self.max_model_tokens - (
             self.sys_prompt_tokens
             + self.token_padding
             + self.max_completion_tokens
         )
+        if self.max_chat_tokens < 0:
+            self.max_chat_tokens = 500
+      
     def trim_chat_log(self):
         """Trims the chat log to the maximum number of messages and tokens allowed"""
+        if  self.max_chat_messages is not None:
+            while len(self.trimmed_chat_log) > self.max_chat_messages :
+                message = self.trimmed_chat_log.popleft()
+                self.trimmed_chat_log_tokens -= message.tokens
+                self.trimmed_messages += 1
         while self.trimmed_chat_log_tokens > self.max_chat_tokens:
             message = self.trimmed_chat_log.popleft()
             self.trimmed_chat_log_tokens -= message.tokens
             self.trimmed_messages += 1
-        while len(self.trimmed_chat_log) > self.max_chat_messages:
-            self.trimmed_chat_log.popleft()
-            self.trimmed_chat_log_tokens -= message.tokens
-            self.trimmed_messages += 1
+       
     # main method to retrieve the chat log, for use with the OpenAI API
     def get_finished_chat_log(self):
         """Returns the trimmed chat log with the system prompt at the start for use with the OpenAI API"""
@@ -322,7 +364,8 @@ class ChatLog:
         """Adds a list of messages to the chat log"""
 
         for message in message_list:
-            self.add_message(message=message)
+            message_obj = self.make_message(message=message)
+            self.add_message_obj(message_obj)
             
                 
     #setters and getters for the last user and assistant messages, for convenience
@@ -417,12 +460,12 @@ class ChatLog:
         def add_path(self, filename: str) -> str:
             """Adds the save_folder to the filename if it doesn't already have it, and adds .json to the end if it doesn't already have it."""
             if not filename.endswith(".json"):
-                result =  filename + ".json"
+                filename =  filename + ".json"
             if not os.path.exists(self.save_folder):
                 os.makedirs(self.save_folder)
             if not filename.startswith(self.save_folder):   
-                result = os.path.join(self.save_folder, result)
-            return result 
+                filename = os.path.join(self.save_folder, filename)
+            return filename 
 
         def remove_path(self, filename: str) -> str:
             """Removes the save_folder from the filename if it has it, and removes .json from the end if it has it."""
@@ -449,7 +492,7 @@ class ChatLog:
                 return False
             with open(file_name, "r") as f:
                 save_dict = json.load(f)
-            print(save_dict)
+          
             self.chat_log.save_to_dict.load(save_dict)
             return True
 
@@ -511,7 +554,7 @@ class ChatLog:
     def reset(self, clear_sys_prompt = False):
         """Resets the chat log to its initial state"""
         self.full_chat_log = []
-        self.trimmed_chat_log = []
+        self.trimmed_chat_log = deque()
         self.trimmed_messages = 0 
         self.trimmed_chat_log_tokens = 0
         if clear_sys_prompt:
@@ -560,7 +603,7 @@ class SaveToDict:
             """Prepares a dict to be saved to a file or for use in other objects/functions"""
             
 
-           
+            self.chat_log.work_out_tokens()
             save_dict = {
                 "metadata": {
                     "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -656,13 +699,19 @@ def count_tokens(str, model):
     return len(encoding.encode(str))
 
 def get_test_chat_log(name = "random_10000"):
-    with open(f"test_chat_logs/{name}.json", "r") as f:
+    if not name.endswith(".json"):
+        name += ".json"
+    if not os.path.exists(f"test_chat_logs/{name}"):
+        name = "random_10000.json"
+    with open(f"test_chat_logs/{name}", "r") as f:
         chat_log = json.load(f)
     return chat_log
 
 
 
 
+long_1000_test_log = get_test_chat_log(name= "long_10000.json")
+short_1000_test_log = get_test_chat_log(name= "short_10000.json")
 
 class TestChatLog(unittest.TestCase):
     def setUp(self) -> None:
@@ -726,7 +775,15 @@ class TestChatLog(unittest.TestCase):
             "max_model_tokens": 500,
         }
         self.assertRaises(BadSaveDictError, self.chat_log.save_to_dict.load, bad_dict)
-
+    def test_file_save(self):
+        """Tests that the load and save methods work"""
+        self.chat_log.save('test', overwrite=True)
+        file_path = self.chat_log.save_to_file.add_path('test.json')
+        self.assertTrue(os.path.exists(file_path))
+        self.chat_log.load('test')
+        self.assertEqual(self.chat_log.max_chat_messages, 200)
+        os.remove(file_path)
+        
     def test_reset(self):
         """Tests that the chat log can be reset"""
         with open('test_chat_logs/random_10000.json', 'r') as f:
@@ -735,13 +792,53 @@ class TestChatLog(unittest.TestCase):
         self.chat_log.reset()
         
         self.assertEqual(self.chat_log.full_chat_log, [])
-        self.assertEqual(self.chat_log.trimmed_chat_log, [])
+        self.assertEqual(self.chat_log.trimmed_chat_log, deque())
         self.assertEqual(self.chat_log.trimmed_chat_log_tokens, 0)
         self.chat_log.reset(clear_sys_prompt=True)
         self.assertEqual(self.chat_log._sys_prompt, None)
-        
-       
+    def test_trim_max_messages(self):
+        test_log = get_test_chat_log(name= "short_2000_messages.json")
+        test_cases = [
+           1000,
+           10,
+           100,
+           50,
+           20, 
+        ]
+        for case in test_cases:
+            with self.subTest(case=case):
+                self.chat_log.max_chat_messages = case
+                self.chat_log.add_message_list(test_log)
+                self.assertLessEqual(len(self.chat_log.trimmed_chat_log), case)
+                self.chat_log.reset()
+                
+    def test_trim_max_tokens(self):
+        # this will remove the the trimming for max messages 
+        long_1000_test_log = get_test_chat_log(name= "long_10000.json")
+        short_1000_test_log = get_test_chat_log(name= "short_10000.json")
+        for case in [1000, 8000, 5000, 500, 1500,]:
+            with self.subTest(case=case ):
+                with self.subTest(case= f"long_{case}"):
+                    self.chat_log.max_chat_messages = None
+                    self.chat_log.max_model_tokens = case 
+                    self.chat_log.add_message_list(long_1000_test_log)
+                    self.assertLessEqual(self.chat_log.trimmed_chat_log_tokens, case)
+                    self.chat_log.reset()
+                with self.subTest(case= f"short_{case}"):
+                    self.chat_log.max_chat_messages = None
+                    self.chat_log.max_model_tokens = case 
+                    self.chat_log.add_message_list(short_1000_test_log)
+                    self.assertLessEqual(self.chat_log.trimmed_chat_log_tokens, case)
+                    self.chat_log.reset()
+    def test_max_model_tokens_setter(self):
+        with self.assertRaises(TypeError):
+            self.chat_log.max_model_tokens = "hello"
+    def test_token_padding_setter_error(self):
+        with self.assertRaises(TypeError):
+            self.chat_log.token_padding = "hello"
     
+        
+                
     def tearDown(self):
         del self.chat_log
 
@@ -749,59 +846,7 @@ class TestChatLog(unittest.TestCase):
 if __name__ == "__main__":
      unittest.main(argv=[""], verbosity=2, exit=False)
 
-# chat = ChatLog()
 
-
-# class MakeChatLog:
-#     """A class to hold templates for different GPT models, and make ChatLog objects from them
-#     Attributes:
-#         config_templates (dict): a dictionary of templates for different GPT models
-#         template_name (str): the name of the template to use
-#         config (dict): the config for the template
-#     Methods:
-#         _get_config: gets the config for the template
-#         make_ChatLog: makes a ChatLog object from the template
-#         __call__: makes a ChatLog object from the template, for use as a function
-#     Example Usage:
-#         chat_log = MakeChatLog("gpt-3-16K")
-#     Dependencies:
-#         ChatLog
-    
-    
-#     """
-#     config_templates = {
-#         "gpt-3-16K": dict(
-#                 max_model_tokens=16000,
-#                 max_completion_tokens=1000,
-#                 token_padding=500,
-#                 model="gpt-3",
-#                 max_chat_messages=1000,
-#             ),
-#             "gpt-4-8K": dict(
-#                 max_model_tokens=8000,
-#                 model="gpt-4",
-#                 max_chat_messages=400,
-#                 max_completion_tokens=1000,
-#                 token_padding=500,
-#             )
-#     }
-
-#     def __init__(self,  template_name):
-        
-#         self.config = self._get_config(template_name)
-#     def __call__(self, template_name):
-#         return self.make_ChatLog(template_name)
-    
-#     def _get_config(self, template_name):
-#         if template_name not in self.config_templates:
-#            return None
-#         config = self.config_templates[template_name]
-#         return config
-#     def make_ChatLog(self, template_name):
-#         config = self._get_config(template_name)
-#         if config is None:
-#             raise ValueError(f"template_name must be one of {self.config_templates.keys()}")
-#         return ChatLog(**config)
 
 def make_chat_log(template_name: str) -> ChatLog:
     config_templates = {

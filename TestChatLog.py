@@ -2,6 +2,18 @@ from EncodeMessage import EncodeMessage, EncodedMessage, BadMessageError
 import random 
 import json
 import os
+class BadModeError(Exception):
+    def __init__(self, message: str = None, bad_mode: str  = None, allowed_modes: list  = None):
+        def default_if_not_None(val, default):
+            return val if val is not None else default
+        msg_list = []
+        msg_list.append(default_if_not_None(message, "Selected mode is not valid"))
+        if bad_mode is not None:
+            msg_list.append(f"Selected mode: {bad_mode}")
+        msg_list.append(default_if_not_None(allowed_modes, "Allowed modes: short, medium, long, random"))
+        self.message = "\n".join(msg_list)
+    def __str__(self):
+        return self.message
 class GenerateTestChatLog:
     """
     This class generates a chat log of a given length, with messages of a given length.
@@ -72,7 +84,7 @@ Now, onto your second long message, approximately 400 tokens. The focus this tim
         for type in self.sample_messages.keys():
             self._encoded_sample_messages[type] = self.encode_sample_messages(type)
     def encode_sample_messages(self, type: str) -> list[EncodedMessage]:
-        """Encode sample messages as EncodedMessage namedtuples of a given type"""
+        """Encode sample messages as EncodedMessage namedtuple of a given type"""
         if type not in self.sample_messages.keys():
             raise ValueError(f"Invalid type: {type}")
         return [self.encoder.encode(message) for message in self.sample_messages[type]]
@@ -89,6 +101,20 @@ Now, onto your second long message, approximately 400 tokens. The focus this tim
             token_count -= msg.token_count
         # double check that the token count is correct
         return chat_log
+    def _check_type(self, mode: str|list) -> None:
+        def check_mode(mode: str) -> None:
+            if mode not in self._modes:
+                raise BadModeError(f"Invalid type: {mode}")
+        if isinstance(mode, str):
+            check_mode(mode)
+        elif isinstance(mode, list):
+            for one in mode:
+                check_mode(one)
+        elif isinstance(mode, tuple) or isinstance(mode, set):
+            for one in mode:
+                check_mode(mode)
+        else:
+            raise BadModeError(f"Invalid type: {type(mode)}")
     def generate_chat_log(self, type: str|list, target_token_count: int) -> list[dict]:
         """Generate a chat log of a given type and target token count
         Type can be either a string or a list of strings
@@ -102,7 +128,7 @@ Now, onto your second long message, approximately 400 tokens. The focus this tim
         """
         if isinstance(type, str):
             if type not in self._modes:
-                raise ValueError(f"Invalid type: {type}")
+                raise BadModeError(f"Invalid type: {type}")
             encoded_messages = []
             if type == "random":
                 
@@ -119,7 +145,7 @@ Now, onto your second long message, approximately 400 tokens. The focus this tim
             encoded_messages = []
             for category in type:
                 if category not in self._modes:
-                    raise ValueError(f"Invalid type: {category}")
+                    raise BadModeError(f"Invalid type: {category}")
                 for msg in self._encoded_sample_messages[category]:
                    encoded_messages.append(msg)
 
@@ -152,6 +178,27 @@ Now, onto your second long message, approximately 400 tokens. The focus this tim
             raise ValueError(f"Invalid type: {type}")
         self.sample_messages[type].remove(message)
         self.encode_all_sample_messages()
+    def generate_n_messages(self, mode: str | list, n: int) -> list[dict]:
+        self._check_type(mode)
+        messages = []
+        if isinstance(mode, str):
+            
+            if mode == "random":
+                messages.extend(self.sample_messages['short'] + self.sample_messages['medium'] + self.sample_messages['long'])
+            else:
+                messages.extend( self.sample_messages[mode])
+        elif isinstance(mode, list):
+            for category in mode:
+                try: 
+                    messages.extend(self.sample_messages[category])
+                except KeyError:
+                    raise BadModeError(f"Invalid type: {category}")
+                
+        for _ in range(n):
+            messages.append(random.choice(messages))
+        return messages
+        
+        
 
     
             
@@ -177,13 +224,16 @@ params = [
     {"type": 'random', "target_token_count": 7000, "file_name": "random_7000.json"},
     {"type": 'random', "target_token_count": 10000, "file_name": "random_10000.json"},
 ]
-gen_and_write_all_in_set(params)
+
 def generate_random_chat_log(target_token_count: int):
     generator = GenerateTestChatLog(model="gpt-4")
     chat_log = generator.generate_chat_log('random', target_token_count)
     return chat_log
 
-
-
+if __name__ == "__main__":
+    with open("test_chat_logs/short_2000_messages.json", "w") as f:
+        generator = GenerateTestChatLog(model="gpt-4")
+        log =  generator.generate_n_messages('short', 2000)
+        json.dump(log, f)
             
 

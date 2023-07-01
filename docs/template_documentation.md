@@ -41,6 +41,6 @@ Each template key has a specific role:
 
 Note: In `chat_log`, the `model` refers to the model used, and in `gpt_chat`, `model_name` refers to the model used. These are essentially the same, so be careful not to confuse them.
 
-Please make sure your templates follow the correct format as described above. Otherwise, a `BadTemplateError` will be thrown. 
+Please make sure your templates follow the correct format as described above. Otherwise, a `BadTemplateError` will be thrown.
 
 This setup allows for flexibility and easy modification of the settings for the `ChatLog` and `GPTChat` objects while maintaining clear and concise code. Happy coding!

@@ -8,7 +8,10 @@
         "logit",
         "openai",
         "Syles",
+        "sysprompt",
+        "Tchat",
         "tiktoken",
         "varnames"
-    ]
+    ],
+    
 }
