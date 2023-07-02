@@ -163,3 +163,88 @@ Today, I had a feeling that I wasn't accomplishing much, but I did a lot of work
 ### Dev Notes
 
 I am so close to being done I can feel it. Ready to be done with this thing. Today was another clean up and tweaking day, but again those are just as important as adding new features.
+
+### An aside on last night's commit
+
+So, I couldn't sleep last night ended up writing 500 lines of code and I can finally talk to my chatbot! Everything seems to be working well, did a little debugging (the wrapper return type system wasn't great, had to debug that and update my tests. But it works great!). Project is almost done!
+
+---
+
+## Dev Log Day 7 (July 1, 2023)
+
+--
+
+Today was a long day, for sure. It took forever, but things are finally coming together.
+
+### What I did today
+
+- Menu for the chat loop:
+
+  - Save `ChatWrapper` class to a file with a menu
+  - Modify model parameters on the fly
+  - Load from a previous save
+  - Change system prompts on the fly (with the `System Prompt Manager` class)
+  - Reset chat
+
+- System prompt manager menu:
+
+  - One class is for the actual functionality of saving and reading files
+
+  - The other is a wrapper with the menus
+
+  - Supports loading a file (if accessed from the chat loop)
+
+  - Writing a new one with info on the wild cards displayed
+
+  - Quickly setting a new one, saving it, and returning it
+
+  - Deleting saves
+
+  - Viewing system prompts
+
+  - Secret debug command that prints out the detailed  `__repr__` I made for the  `ChatWrapper` class
+    - Includes the other detailed `__repr__` from `ChatLog` and `GPTChat`
+    - Of course, any API keys are omitted, it just shows if one is present or not
+
+- Main menu class:
+
+  - Choose from templates
+
+  - Set a system prompt, or manage system prompt saves/create new ones
+
+  - Create the `ChatWrapper` object using the factory system
+
+  - Load from a save for the `ChatWrapper` object
+
+    - This is unfortunately mostly copied and pasted from the method `ChatLoop`. I can't really access it before making the chat loop object, and that requires a `ChatWrapper`
+    - Wanted to give users the option to load a different save in both menus
+
+### Dev Notes
+
+- Tested it a lot, but still need to thoroughly use everything there.
+- This is kind of a monster of a file, and certainly not my best work. If I ever make a CLI again, I will use specialized libraries.
+- There's nothing super wrong with it; it's well structured and documented with type hints and docstrings. However, there is a lot of repetition and it's all nested conditional logic.
+- The file itself is **huge** — over 1K lines.
+- In my previous dev log, I was excited to make this, but gee whiz, this is taking a lot of effort.
+- Almost done though! On track to finish by July 3.
+- I seriously can't wait to be done.
+
+### To Do
+
+- Debug and test the menus.
+- Make README.md.
+- Add a GPT-generated guide on installing for complete beginners in the docs folder called `HELP_ME.md`.
+- Reset chat log before returning to the menu after quitting the chat loop. **(REMEMBER, ALEX! THIS COULD CONFUSE USERS)**
+- Add two features if I have time:
+  - Outputting chat log as a text file.
+  - Get messages from a text file, for copying in large messages.
+    - Maybe add multiple files and a nice menu, otherwise just get them from a text file.
+- Add more documentation if I have time.
+- Fix up the `__repr__` to improve formatting a bit.
+- Fix up the error messages for the input validation. It's currently saying "Can't be type False" due to the way I implemented it. I should save type first for the error message in my `BadModelParamError` exception.
+
+### What I Learned Today
+
+- Never make a CLI interface without using a library and studying various methods.
+- Eye drops, and breaks are a honking good idea! Let's have more of those.
+- I mean, overall lots more. But I am planning to add a retrospective what I learned section to the end of the dev log once I am done.

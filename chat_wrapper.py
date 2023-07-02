@@ -53,7 +53,7 @@ class ChatWrapperNotSetupError(Exception):
 
 
 class ChatWrapper:
-    version = "0.1.0"
+    version = "0.1.1"
 
     # Should have an API_KEY set to a variable called API_KEY if you don't want to provide one during construction, (Need one to load the GPTChat object)
     def __init__(
@@ -62,7 +62,7 @@ class ChatWrapper:
         gpt_chat: g.GPTChat = None,
         chat_log: g.ch.ChatLog = None,
         save_path: str = "chatbot_saves",
-        return_type: str = "string",
+        return_type: str = "Message",
         wrapper_return_type: str = "pretty_printed",
         default_system_prompt: str = "You are a helpful AI assistant. Your model is {model} Today's date is {date}, and your training data cuts off in September 2021 "
     ) -> None:
@@ -289,6 +289,7 @@ class ChatWrapper:
             chat_log_dict = self.chat_log.make_save_dict()
 
             gpt_chat_dict = self.gpt_chat.make_save_dict()
+            gpt_chat_dict['return_type'] = "Message"
 
             meta_data = {
                 "chat_wrapper_version": self.chat_wrapper.version,
@@ -310,7 +311,7 @@ class ChatWrapper:
             self.chat_wrapper.add_ChatLog_object(self.chat_log)
             self.chat_wrapper.chat_log.save_to_dict.load(save_dict["chat_log"])
             
-            self.gpt_chat = g.GPTChat(API_KEY=API_KEY)
+            self.gpt_chat = g.GPTChat(API_KEY=API_KEY, return_type="Message")
             self.gpt_chat.load_save_dict(save_dict["gpt_chat"])
             self.chat_wrapper.add_GPTChat_object(self.gpt_chat)
             self.chat_wrapper.is_loaded = True
