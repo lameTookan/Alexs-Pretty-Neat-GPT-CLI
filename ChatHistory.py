@@ -6,6 +6,7 @@ import uuid
 from collections import UserDict, UserList, UserString, deque, namedtuple
 
 import tiktoken
+tiktoken.model.MODEL_TO_ENCODING["gpt-35-turbo"] = "cl100k_base"
 
 from EncodeMessage import BadMessageError, EncodedMessage, EncodeMessage
 
@@ -45,6 +46,7 @@ class Message(UserDict):
         self.tokens = self._count_tokens(content)
 
     def _count_tokens(self, string):
+        # if self.model == "gpt-3.5" or self.model == "gpt-35-turbo":
         encoding = tiktoken.encoding_for_model(self.model)
         return len(encoding.encode(string))
 
@@ -270,16 +272,31 @@ class ChatLog:
 
     def _add_wildcards(self, string: str) -> str:
         """Adds wildcards to the system prompt"""
+        # need to prevent extra curley braces in stirng from causing problems
+        if len(string) > 4_000:
+            rest_of_string = string[4_000:]
+            string = string[:4_000]
+        else:
+            rest_of_string = ""
+        def replace_curley(string: str) -> str:
+            return string.replace("{", "|__").replace("}", "__|")
+        def undo_curley_replace(string: str) -> str:
+            return string.replace("|__", "{").replace("__|", "}")
         wild_cards = {
             key: value["value"] for key, value in self.system_prompt_wildcards.items()
         }
         for key, value in wild_cards.items():
             if value == "__DATE__":
-                wild_cards[key] = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                wild_cards[key] = datetime.datetime.now().strftime("%B,%d, %Y %H:%M:%S")
             if value == "__MODEL__":
                 wild_cards[key] = self.model
+        ReplacedWildCards = namedtuple("ReplacedWildCards", ['name', 'value', 'wildcard'])
+        replaced_wildcards = [ReplacedWildCards(name=key, value=value, wildcard=replace_curley(key)) for key, value in wild_cards.items()]
+        replaced_str = replace_curley(string)
+        for wildcard in replaced_wildcards:
+            replaced_str = replaced_str.replace(wildcard.wildcard, wildcard.value)        
 
-        return string.format(**wild_cards)
+        return undo_curley_replace(replaced_str) + rest_of_string
 
     
 

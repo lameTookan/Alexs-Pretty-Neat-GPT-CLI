@@ -248,3 +248,55 @@ Today was a long day, for sure. It took forever, but things are finally coming t
 - Never make a CLI interface without using a library and studying various methods.
 - Eye drops, and breaks are a honking good idea! Let's have more of those.
 - I mean, overall lots more. But I am planning to add a retrospective what I learned section to the end of the dev log once I am done.
+
+---
+
+## Day 8 (July 2, 2023)
+
+---
+
+### What I did today
+
+- Debugged and touched up my menu system.
+- Fixed the little bugs I mentioned earlier
+- Completed the from file feature
+- Completed the export system, have not integrated it into the menu system
+- Tested everything in the menu system
+- Added a few more templates for the system
+- Added a bypass menu env variable to bypass the main menu and go straight into the main chat loop
+- Worked out a bug with the wildcard system preventing the ability for users to use curley braces in system prompts
+
+### Dev Notes
+
+- I honestly kinda hate the menu system, I have been doing a lot of research on command patterns and I wish I did it first
+  - While I am tempted to give myself another day to work on it, I still think it would be better to release it as is, and work on refactoring once I have a little bit of time
+- I really love my underlying codebase however, the menu system just needs a lot of reworking
+- I am ready to be done with this project however, at least for now.
+- I'll likely refactor the entire menu system later, as a side project, once I've sort of defragged my brain from this project
+- The menu system does work really well, and I learned a lot from making it.
+
+### What I learned today
+
+- There are much better ways to make a command line interface like this, and I should use them
+- A lot more on this will be included in my final retrospectiive
+
+### To do(before release)
+
+- Integrate the export chat feature into the menu system(if I have time)
+- Do a final check through of my code base, make sure everything that should be removed is gone
+- Make README
+- Ask GPT to generate a more comprehensive HELP_ME.md file for folks that have never installed a python project before, as I have been there
+- Update documentation
+
+#### Longer term to do
+
+This is stuff I can do when I pick up this project again to improve it
+
+- Scrap the entire menu system and rework it using command pattern and specialized libraries for this kinda thing
+- Reorganize code base to avoid circular imports
+- Refactor chatlog.
+  - UserList for the main chat log(what I call full_chat_log)
+  - Take a hard line stance on the Messages. It should only work with Message objects, not strings. There are too many convience methods meant to allow for inputting of strings, dicts etc
+  - To this end, use the message factory callable I have to generate a function to properly encode Messages with the model name,
+  - Overall this is a pretty small thing though, it does work with Messages for the most part, I just have wrapper methods for the main ones that deal with Message objects to allow for inputting stuff as a string and role, and exporting as strings.
+    - Maybe 4 of such methods

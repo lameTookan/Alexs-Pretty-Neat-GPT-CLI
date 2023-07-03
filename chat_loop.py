@@ -10,7 +10,8 @@ import tiktoken
 
 import misc.MyStuff as ms
 import object_factory as fact
-from settings import API_KEY, DEFAULT_MODEL, DEFAULT_TEMPLATE_NAME
+from settings import API_KEY, DEFAULT_MODEL, DEFAULT_TEMPLATE_NAME, BYPASS_MAIN_MENU
+import from_file.from_file as ff
 
 
 def split_input_from_cmd(cmd: str, string: str) -> str:
@@ -86,7 +87,6 @@ def confirm(message: str = "Are you sure?", y_n="(y/n)", y="y", n="n") -> bool:
             print("Invalid input. Please try again.")
 
 
- 
 class SystemPromptManager:
     """
     Class for managing system prompts, including saving, loading, and modifying them from a text file
@@ -144,13 +144,13 @@ class SystemPromptManager:
         """Reads a file and returns the text as a string"""
         file_name = self.add_file_path(file_name)
         if not os.path.exists(file_name):
-            return None
+           raise FileNotFoundError(f"File {file_name} does not exist")
         try:
             with open(file_name, "r") as f:
-                file =  f.read()
+                file = f.read()
             return file
         except:
-            return None
+            raise Exception(f"Could not read file {file_name}")
 
     def write_file(self, file_name: str, text: str, overwrite=False) -> bool:
         """
@@ -196,8 +196,6 @@ class SystemPromptManager:
         for key, value in self.sys_info_dict.items():
             result.append(key + ": " + value["description"])
         return "\n".join(result)
-
-
 
 
 class SysPromptManagerMenu:
@@ -255,9 +253,17 @@ class SysPromptManagerMenu:
                     print(self.sys_prompt_manager.read_file(filename))
             elif ans_lower.startswith("load"):
                 print("Loading system prompt...")
-                self.loaded_file = self.sys_prompt_manager.read_file(ans)
-                print("System prompt loaded successfully!")
-                return self.loaded_file
+                cmd = split_input_from_cmd("load", ans)
+                try: 
+                    loaded_file = self.sys_prompt_manager.read_file(cmd)
+                    print("System prompt loaded successfully!")
+                    self.loaded_file = loaded_file
+                    return loaded_file
+                except FileNotFoundError:
+                    print("Invalid file name. Please try again.")
+                    continue
+                    
+                
 
             elif ans_lower.startswith("remove"):
                 if split_input_from_cmd("remove", ans) in files_list:
@@ -284,12 +290,18 @@ class SysPromptManagerMenu:
             "Please note that you can also save new system prompts by adding them to the system_prompts folder, as .txt files."
             "Otherwise, type  a file name to save a new system prompt. ",
         ]
-        files = "\n".join(self.sys_prompt_manager.get_file_names())
-        files_list = self.sys_prompt_manager.get_file_names()
+
+        def refresh_file_list() -> tuple[str, list]:
+            """Returns a string with all the file names in the save folder"""
+            return "\n".join(self.sys_prompt_manager.get_file_names()), self.sys_prompt_manager.get_file_names(),
+            
+
+        files, files_list = refresh_file_list()
         message = "\n".join(msg_list)
         print(message)
         print("System Prompts in Folder:" + f"------\n {files}  \n ------")
         while True:
+            files, files_list = refresh_file_list()
             ans = input("> ")
             ans_lower = ans.lower()
             if ans_lower in ("q", "quit"):
@@ -407,7 +419,7 @@ class SysPromptManagerMenu:
                 prompt = self.load_menu()
                 if prompt is not None:
                     print("Loaded system prompt: " + prompt)
-                    print("Returning to previous menu...")
+                    print("Exiting system prompt manager...")
                     self.loaded_file = prompt
                     return prompt
                 else:
@@ -423,7 +435,7 @@ class SysPromptManagerMenu:
 
     def quick_sys_prompt(self, save=True):
         """Quickly change the system prompt, for use in the chatloop"""
-        print("Enter a new system prompt. Double tap enter to save.")
+        print("Enter a new system prompt. Double tap enter to set the prompt.")
         print("To quit without saving, enter 'q' or 'quit'.")
         print(
             "Type 'wildcards' to see a list of wildcards you can use in your system prompt."
@@ -443,7 +455,7 @@ class SysPromptManagerMenu:
             elif ans_lower in ("wild", "wildcards"):
                 print(self.sys_prompt_manager.get_wildcard_info())
                 continue
-            elif ans_lower in ("save", "s") and save:
+            elif ans_lower in ("save", "s"):
                 save = toggle(save)
                 if save:
                     print(
@@ -487,57 +499,100 @@ class SysPromptManagerMenu:
                         return ans
                 else:
                     continue
-                
+
     def get_wildcards(self) -> str:
         """Returns a string containing the wildcards"""
         return self.sys_prompt_manager.get_wildcard_info()
 
 
 class ChatLoop:
-    
+
     """
-    This class is a freaking monster, and a mess. 
+    This class is a freaking monster, and a mess.
     I don't expect to ever really be making other command line interfaces, nor do I expect to ever reuse this code, so I'm leaving it as is. It works, and works well, and does a good job of showing off the capabilities of the chat wrapper and this codebase in general. I recommend using a better library for creating a command line interface, or just a GUI.
-    
-    This class is the main chat loop for the chat wrapper. It allows users to chat with the model, as well as customizing every aspect of the implementation 
+
+    This class is the main chat loop for the chat wrapper. It allows users to chat with the model, as well as customizing every aspect of the implementation
     Attributes:
         sys_manager_obj: The system prompt manager object, used to change the system prompt
         chat_wrapper: The chat wrapper object, used to chat with the model
-        gpt_chat: The gpt chat object, 
+        gpt_chat: The gpt chat object,
         chat_log: The chat log object
         chunking: Whether or not to chunk the input into multiple inputs, to get around the 1024 char limit in many terminals
     Methods:
         run_chat_loop: The main chat loop for the chat wrapper
         load_menu: The menu for loading a saved chat log
         save_menu: The menu for saving a chat log
-        modify_params: The menu for modifying the model parameters on the fly 
-        
+        modify_params: The menu for modifying the model parameters on the fly
+
     Example Usage:
         chat_wrapper = fact.wrapper_factory.make_chat_wrapper()
         sys_manager_obj = SysPromptManagerMenu()
         chat_loop = ChatLoop(sys_manager_obj, chat_wrapper)
         chat_loop.run_chat_loop()
-        """
-    def __init__(self, sys_manager_obj: SysPromptManagerMenu,  chat_wrapper: fact.cw.ChatWrapper, chunking=True):
+    """
+
+    def __init__(
+        self,
+        sys_manager_obj: SysPromptManagerMenu,
+        chat_wrapper: fact.cw.ChatWrapper,
+        chunking=True,
+        file_selector: ff.FromFile = ff.file_selector,
+    ):
+        self.file_selector = file_selector
         self.chat_wrapper: fact.cw.ChatWrapper = chat_wrapper
         self.chunking = chunking
         self.chat_log: fact.cw.g.ch.ChatLog = chat_wrapper.chat_log
         self.gpt_chat: fact.cw.g.GPTChat = chat_wrapper.gpt_chat
         self.sys_manager_obj: SysPromptManagerMenu = sys_manager_obj
 
+    def from_file_cmd(self, cmd: str = None):
+        help_list = [
+            "The from_file command allows you to load a text file and use it as input to the model.",
+            "You can either read the default.txt filename in the from_file folder or you can read a file of your choice from the from_file/files folder.",
+            "Supported Commands",
+            f"{ms.yellow('from_file')} - Reads the default.txt file in the from_file folder",
+            f"{ms.yellow('from_file <filename>')} - Reads the specified file in the from_file/files folder. If not found, an error message will be displayed(without the program crashing or anything like that)",
+            f"{ms.yellow('from_file menu')} - Will open up the from file menu, allowing you to select a file from the from_file/files folder",
+            f"{ms.yellow('from_file help')} - Displays this message",
+        ]
+        help_message = "\n".join(help_list)
+        if cmd is not None:
+            command = cmd 
+
+            if command.lower().strip() == "help":
+                print(help_message)
+                return None
+            elif command.lower().strip() == "menu":
+                print("Opening from file menu...")
+                file = self.file_selector.menu()
+                print("File loaded successfully!")
+                return file
+            else:
+                try: 
+                    file = self.file_selector.get_file(command)
+                    print("File loaded successfully!")
+                    return file
+                except FileNotFoundError:
+                    print("File not found, please try again.")
+           
+        else:
+            print("Loading default.txt file...")
+            return self.file_selector.get_default()
+
     def run_chat_loop(self):
         """Main chat loop for the chat wrapper"""
         msg_list = [
-            "Type 'quit' to quit(and return to main menu)",
-            "Type 'save' to save the chat log",
-            "Type 'load' to load a chat log from the save folder",
-            "Type 'params' to modify the model parameters",
-            "Type 'clear' to clear the chat log",
-            "Type 'help' to see this message again",
-            "Type chunk to turn off/on input chunking(useful in linux/macOS)",
-            "Type 'sys' to load or change a system prompt with saving enabled",
-            "Type 'quicksys' to load or change a system prompt without saving",
-            "Type 'sysmanage' to access the System Prompt Manager Menu",
+            f"Type {ms.yellow('quit')} to quit (and return to main menu)",
+            f"Type {ms.yellow('save')} to save the chat log",
+            f"Type {ms.yellow('load')} to load a chat log from the save folder",
+            f"Type {ms.yellow('params')} to modify the model parameters",
+            f"Type {ms.yellow('clear')} to clear the chat log",
+            f"Type {ms.yellow('help')} to see this message again",
+            f"Type {ms.yellow('chunk')} to turn off/on input chunking (useful in linux/macOS)",
+            f"Type {ms.yellow('from_file help')} to learn more about the read file from text file feature",
+            f"Type {ms.yellow('sys')} to load or change a system prompt with saving enabled",
+            f"Type {ms.yellow('quicksys')} to load or change a system prompt without saving",
+            f"Type {ms.yellow('sysmanage')} to access the System Prompt Manager Menu",
         ]
 
         message = "\n".join(msg_list)
@@ -551,16 +606,32 @@ class ChatLoop:
                 ans = chunk_input()
             else:
                 ans = input("> ")
+
             ans_lower = ans.lower()
             ans_lower = ans_lower.strip()
+
             if ans_lower in ("quit", "exit", "q"):
                 if confirm("Are you sure you want to quit?"):
                     print("Quitting...")
                     break
+            elif ms.xy(ans_lower):
+                pass
             elif ans_lower in ("save", "s"):
                 self.save_menu()
                 print("Returning to the chat loop...")
                 continue
+            elif ans_lower.startswith("from_file"):
+                command = ans_lower.replace("from_file", "").strip()
+                if command == "" or command is None:
+                    file_text = self.from_file_cmd()
+                else:
+                    file_text = self.from_file_cmd(command)
+                if file_text is not None:
+                    print("File loaded successfully!")
+                    print("Generating response...")
+                    response = self.chat_wrapper.chat_with_assistant(file_text)
+                    print(response)
+                    
             elif ans_lower in (
                 "clear",
                 "r",
@@ -594,10 +665,7 @@ class ChatLoop:
             elif ans_lower == "debug":
                 print("Printing debug info...")
                 print(self.chat_wrapper.__repr__())
-            elif ans_lower == "nicki minaj":
-                # easter egg I add to all my projects, somewhere
-                print(ms.magenta(ms.nicki_minaj))
-            
+
             elif ans_lower in ("quicksys", "qsys"):
                 print("Entering the quick system prompt menu...")
                 new_prompt = self.sys_manager_obj.quick_sys_prompt(save=False)
@@ -605,7 +673,7 @@ class ChatLoop:
                     print("No system prompt loaded.")
                     print("Returning to the chat loop...")
                     continue
-                self.chat_wrapper.chat_log.sys_prompt = new_prompt 
+                self.chat_wrapper.chat_log.sys_prompt = new_prompt
                 print("System prompt changed.")
                 print("Returning to the chat loop...")
                 continue
@@ -613,7 +681,9 @@ class ChatLoop:
                 print("Entering the system prompt manager menu...")
                 self.sys_manager_obj.main_menu()
                 if self.sys_manager_obj.loaded_file is not None:
-                    self.chat_wrapper.chat_log.sys_prompt = self.sys_manager_obj.loaded_file
+                    self.chat_wrapper.chat_log.sys_prompt = (
+                        self.sys_manager_obj.loaded_file
+                    )
                     print("System prompt changed.")
                     print("Returning to the chat loop...")
                     continue
@@ -622,14 +692,20 @@ class ChatLoop:
                     print("Returning to the chat loop...")
                     continue
             elif ans_lower in ("sys", "system"):
-                new_prompt = self.sys_manager_obj.quick_sys_prompt(save=False)
+                new_prompt = self.sys_manager_obj.quick_sys_prompt(save=True)
                 if new_prompt is None:
                     print("No system prompt loaded.")
                     print("Returning to the chat loop...")
                     continue
-                self.sys_manager_obj.loaded_file = new_prompt
-                
-            
+                else:
+                    self.chat_wrapper.chat_log.sys_prompt = new_prompt
+                    if self.chat_wrapper.chat_log._sys_prompt == new_prompt:
+                        print("System prompt changed.")
+                    else:
+                        print("A error has occurred that indicates a deep problem with this code base. Please report this issue on the github page, along with the following information:")
+                        print(repr(self.chat_wrapper))
+                    
+
             else:
                 if ans == "" or ans == " " or ans == None:
                     print("No input detected.")
@@ -820,7 +896,10 @@ class ChatLoop:
 
 class MainMenu:
     def __init__(
-        self, sys_prompt_manager: SysPromptManagerMenu, API_KEY=API_KEY, factory: fact.ChatWrapperFactory = fact.wrapper_factory
+        self,
+        sys_prompt_manager: SysPromptManagerMenu,
+        API_KEY=API_KEY,
+        factory: fact.ChatWrapperFactory = fact.wrapper_factory,
     ):
         self.API_KEY = API_KEY
         self.factory: fact.ChatWrapperFactory = factory
@@ -904,7 +983,7 @@ class MainMenu:
                 if cmd is None:
                     print("Printing info for all templates...")
                     print(all_template_info)
-                elif cmd in all_templates_dict.keys():
+                elif cmd.strip() in all_templates_dict.keys():
                     print(format_template_dict_as_string(cmd, all_templates_dict[cmd]))
                 else:
                     print("Invalid template name. Please try again.")
@@ -963,33 +1042,35 @@ class MainMenu:
 
     def sys_prompt_menu(self) -> None:
         msg_list = [
-            
             "To quickly type up a new system prompt, without the option to save it type 'new' ",
             "To do the same but be prompted to save it, type 'new save'",
             "To enter the full system prompt manager, type 'full'",
             "To quickly enter the system prompt loading menu, type 'load'",
             "To exit and return to the main menu, type 'quit'",
             "To see this message again, type 'help'",
-                    
-                    ]
+        ]
         print("Welcome to the system prompt manager!")
         message = "\n".join(msg_list)
         print(message)
         while True:
             if self.system_prompt is not None:
                 print("Current System Prompt: " + self.system_prompt)
-                print("Keep in mind, that {wildcards} will be replaced with the appropriate values. To see a full list of wildcards, type 'wildcards'")
+                print(
+                    "Keep in mind, that {wildcards} will be replaced with the appropriate values. To see a full list of wildcards, type 'wildcards'"
+                )
             ans = input("> ")
             ans_lower = ans.lower()
             ans_lower = ans_lower.strip()
             if ans_lower in ("quit", "q"):
-                if confirm("Are you sure you want to exit?"):
-                    print("Returning to main menu...")
-                    return None
-                else:
-                    print("Exiting canceled.")
-                    print("Type help to see the help message again.")
-                    continue
+                print("Returning to main menu...")
+                return None
+            elif ans_lower in ("load", "l"):
+                print("Entering system prompt loading menu...")
+                new_sys_prompt = self.sys_prompt_manager.load_menu()
+                if new_sys_prompt is not None:
+                    self.system_prompt = new_sys_prompt
+                    print("System prompt set to: " + self.system_prompt)
+                    print("Exiting system prompt menu and returning to main menu...")
             elif ans_lower in ("help", "h"):
                 print(message)
             elif ans_lower in ("wildcards", "wc"):
@@ -999,35 +1080,41 @@ class MainMenu:
                 new_prompt = self.sys_prompt_manager.quick_sys_prompt(save=False)
                 if new_prompt is None:
                     print("System prompt not saved.")
-                    continue 
+                    continue
                 else:
                     self.system_prompt = new_prompt
                     print("System prompt set to: " + self.system_prompt)
-                    continue
+                    print("Returning to main menu...")
+                    break
             elif ans_lower in ("new save", "ns"):
                 print("Entering quick system prompt menu...")
                 new_prompt = self.sys_prompt_manager.quick_sys_prompt(save=True)
                 if new_prompt is None:
                     print("System prompt not saved.")
+                    print("Still in the main menu's system prompt menu...")
                     continue
                 else:
                     self.system_prompt = new_prompt
-                    print("System prompt set to: " + self.system_prompt,)
-                    print("Returning to system prompt menu...")
-                    continue
+                    print(
+                        "System prompt set to: " + self.system_prompt,
+                    )
+                    print("Returning to main menu...")
+                    break
             elif ans_lower in ("full", "f"):
                 self.sys_prompt_manager.main_menu()
                 if self.sys_prompt_manager.loaded_file is not None:
-                    print("System prompt set to: " + self.sys_prompt_manager.loaded_file)
+                    print(
+                        "System prompt set to: " + self.sys_prompt_manager.loaded_file
+                    )
                     self.system_prompt = self.sys_prompt_manager.loaded_file
-                    print("Returning to system prompt menu...")
-                    continue
+                    print("Returning to main menu...")
+                    break
                 else:
-                    print("Returning to system prompt menu...")
+                    print("Still in the main menu's system prompt menu...")
             else:
                 print("Invalid command. Please try again.")
-                continue        
-                
+                continue
+
     def load_menu(self) -> None:
         self.chat_wrapper = self.factory.make_chat_wrapper()
         # yes, I did repeat myself. But it might be useful for users to be able to load from a save in both the main menu and the chat menu
@@ -1065,7 +1152,9 @@ class MainMenu:
                     ):
                         try:
                             if self.chat_wrapper.load(ans):
-                                print("Chat loaded. Returning to previous menu...")
+                                print("Chat loaded.")
+                                if confirm("Would you like to start chatting immediately?"):
+                                    self.start_chat()
                                 return True
                             else:
                                 print(
@@ -1083,63 +1172,116 @@ class MainMenu:
                         continue
                 else:
                     print("File not found. Please try again.")
+
     def _make_chat_wrapper(self):
         self.factory.select_template(self.selected_template_name)
         self.chat_wrapper = self.factory.make_chat_wrapper()
         self.chat_wrapper.chat_log.sys_prompt = self.system_prompt
-        self.chat_loop = ChatLoop(self.sys_prompt_manager, self.chat_wrapper)
+        self.chat_loop = ChatLoop(sys_manager_obj=self.sys_prompt_manager, chat_wrapper=self.chat_wrapper)
         self.is_ready = True
-    def start_chat(self)-> None:
+
+    def start_chat(self) -> None:
         if self.is_ready:
             self.chat_loop.run_chat_loop()
             print("Chat loop exited.")
             print("Returning to main menu...")
+            self.chat_loop = None
             return None
         else:
             try:
-                self._make_chat_wrapper()
-                self.chat_loop.run_chat_loop()
-            except:
-                print("Error when setting up chat bot. Please make sure you have a valid template selected and a valid system prompt.")
+                if self.chat_wrapper is None:
+                    self._make_chat_wrapper()
+                else:
+                    self.chat_loop = ChatLoop(sys_manager_obj=self.sys_prompt_manager, chat_wrapper=self.chat_wrapper)
                 
+                self.chat_loop.run_chat_loop()
+                self.chat_loop = None
+                print("Returning to main menu...")
+            except Exception as e:
+                 print(e)
+                 print(
+                     "Error when setting up chat bot. Please make sure you have a valid template selected and a valid system prompt."
+                 )
+
     def main_menu(self) -> None:
+        if BYPASS_MAIN_MENU == True:
+            print("Bypass main menu is set to true. ")
+            print("You can turn this off by setting BYPASS_MAIN_MENU to 0 in the .env file.")
+            print("Starting chat...")
+            self.start_chat()
+            print("Exiting program...")
+            return None 
         print(ms.magenta("===================================="))
-        print(ms.yellow("Welcome to the main menu for Alex's Maybe Kinda Neat CLI Chat Interface!"))
-        print("Note: Ensure that you have completed the setup process before attempting to use the chat bot, otherwise you will encounter errors. For help with that, please look over the README.md file, or better yet HELP_ME.md file in the docs folder.")
+        print(
+            ms.yellow(
+                "Welcome to the main menu for Alex's Maybe Kinda Neat CLI Chat Interface!"
+            )
+        )
+        print(
+            "Note: Ensure that you have completed the setup process before attempting to use the chat bot, otherwise you will encounter errors. For help with that, please look over the README.md file, or better yet HELP_ME.md file in the docs folder."
+        )
         print(ms.magenta("===================================="))
         msg_list = [
+            "Please note, you can bypass the main menu entirely by setting the .env variable 'BYPASS_MAIN_MENU' to 1.",
             "Type 'chat' to start a chat",
             "Type 'template' to enter the template menu",
             "Type 'system' to enter the system prompt menu",
             "Type 'load' to load from a previous save.",
             "Type 'help' to see this message again.",
             "Type 'quit' to quit. (This will exit the program entirely)",
-            
         ]
-        CmdAndInfo = namedtuple("CmdAndInfo", ["func", "alt_cmds","name", "start_msg", "end_msg"])
+        CmdAndInfo = namedtuple(
+            "CmdAndInfo", ["func", "alt_cmds", "name", "start_msg", "end_msg"]
+        )
         map_dict = {
-                "chat": CmdAndInfo(self.start_chat,("c", "go"), "chat", "Entering chat menu...", "Returning to main menu..."),
-                "template": CmdAndInfo(self.template_menu,("t", "temp"), "template", "Entering template menu...", "Returning to main menu..."),
-                "load": CmdAndInfo(self.load_menu, ("l", "load"), "load", "Entering load menu...", "Returning to main menu..."),
-                "system": CmdAndInfo(self.sys_prompt_menu, ("s", "sys"), "system", "Entering system prompt menu...", "Returning to main menu..."),
-                
-                
-                
-            }
+            "chat": CmdAndInfo(
+                self.start_chat,
+                ("c", "go"),
+                "chat",
+                "Entering chat menu...",
+                "Returning to main menu...",
+            ),
+            "template": CmdAndInfo(
+                self.template_menu,
+                ("t", "temp"),
+                "template",
+                "Entering template menu...",
+                "Back in main menu...",
+            ),
+            "load": CmdAndInfo(
+                self.load_menu,
+                ("l", "load"),
+                "load",
+                "Entering load menu...",
+                "Back in main menu...",
+            ),
+            "system": CmdAndInfo(
+                self.sys_prompt_menu,
+                ("s", "sys"),
+                "system",
+                "Entering system prompt menu...",
+                "Back in main menu...",
+            ),
+        }
+
         def process_command(user_input):
-                for cmd, cmd_info in map_dict.items():
-                    if user_input == cmd or user_input in cmd_info.alt_cmds:
-                        print(cmd_info.start_msg)
-                        cmd_info.func() # Call the function associated with the command
-                        print(cmd_info.end_msg)
-                        return True
-                return False
+            for cmd, cmd_info in map_dict.items():
+                if user_input == cmd or user_input in cmd_info.alt_cmds:
+                    print(cmd_info.start_msg)
+                    cmd_info.func()  # Call the function associated with the command
+                    print(cmd_info.end_msg)
+                    return True
+            return False
+
         message = "\n".join(msg_list)
         print(message)
+        
         while True:
+            print("On main menu. Please enter a command.")
             ans = input("> ")
             ans_lower = ans.lower()
             ans_lower = ans_lower.strip()
+            
             if ans_lower in ("q", "quit", "exit"):
                 if confirm("Are you sure you want to quit?"):
                     print("Quitting...")
@@ -1148,19 +1290,15 @@ class MainMenu:
                     print("Not quitting. Type 'help' to see the help message again.")
             elif ans_lower in ("h", "help"):
                 print(message)
-            elif ans_lower in ( "nicki minaj ", "monster"):
-                print(ms.magenta(ms.nicki_minaj))
+            elif ms.xy(ans_lower):
+                pass
+
             else:
                 if not process_command(ans_lower):
                     print("Invalid command. Please try again.")
                     continue
-                else:   
+                else:
                     continue
-                    
-            
-           
-            
-
 
 
 if __name__ == "__main__":
@@ -1168,6 +1306,3 @@ if __name__ == "__main__":
     sys_menu = SysPromptManagerMenu(sys_prompt_manager)
     main_menu = MainMenu(sys_menu)
     main_menu.main_menu()
-    
-
-    

@@ -202,16 +202,17 @@ class GPTChat:
         constructor = (
             "GPTChat("
             + ", ".join(
-                f"{key} = {value}" for key, value in self.constructor_params.items()
+                f"{key} = {value}" for key, value in self.constructor_params.items() if value is not "template"
             )
             + ")"
         )
-        model_params = "model_params = " + ", ".join(
+        model_params = "Currently Set Model Parameters:  " + ", ".join(
             f"{key} = {value}" for key, value in self.get_params().items()
         )
         other_info = "id = " + str(id(self))
-        return "\n".join([constructor, model_params, other_info])
-
+        template_info = "template = " + str(self.template) if self.template else " No template"
+        return "\n".join([constructor, model_params, template_info,  other_info])
+        
     # all of the following are setters and getters for the model parameters. They accept None as a value, which means that the parameter not be sent to the openai api(ie it won't send over param=None, it just won't send over that param at all)
     @property
     def temperature(self) -> float:
@@ -224,10 +225,11 @@ class GPTChat:
         if value is None:
             self._temperature = value
             return None
+        val_type = type(value)
         value = try_converting_to_datatype(value, float)
         if value is False:
             raise BadChatCompletionParams(
-                bad_param={"temperature": value}, msg="Temperature must be a float"
+                bad_param={"temperature": value}, msg="Temperature must be a float, not a " + str(val_type)
             )
         elif not 0 <= value <= 2:
             raise BadChatCompletionParams(bad_param={"temperature": value})
@@ -256,10 +258,11 @@ class GPTChat:
         if value is None:
             self._max_tokens = value
             return None
+        val_type = str(type(value))
         value = try_converting_to_datatype(value, int)
         if value is False:
             raise BadChatCompletionParams(
-                bad_param={"max_tokens": value}, msg="Max tokens must be an int"
+                bad_param={"max_tokens": value}, msg="Max tokens must be an int, not a " + val_type
             )
 
         elif value < 1:
@@ -278,10 +281,11 @@ class GPTChat:
         if value is None:
             self._top_p = value
             return None
+        val_type = str(type(value))
         value = try_converting_to_datatype(value, float)
         if value is False:
             raise BadChatCompletionParams(
-                bad_param={"top_p": value}, msg="Top p must be a float"
+                bad_param={"top_p": value}, msg="Top p must be a float, not a " + val_type
             )
         elif not 0 <= value <= 1:
             raise BadChatCompletionParams(bad_param={"top_p": value})
@@ -298,11 +302,12 @@ class GPTChat:
         if value is None:
             self._frequency_penalty = value
             return None
+        val_type = str(type(value))
         value = try_converting_to_datatype(value, float)
         if value is False:
             raise BadChatCompletionParams(
                 bad_param={"frequency_penalty": value},
-                msg="Frequency penalty must be a float",
+                msg="Frequency penalty must be a float, not a " + val_type,
             )
         elif not 0 <= value <= 2:
             raise BadChatCompletionParams(bad_param={"frequency_penalty": value})
@@ -321,11 +326,12 @@ class GPTChat:
         if value is None:
             self._presence_penalty = value
             return None
+        val_type = str(type(value))
         value = try_converting_to_datatype(value, float)
         if value is False:
             raise BadChatCompletionParams(
                 bad_param={"presence_penalty": value},
-                msg="Presence penalty must be a float",
+                msg="Presence penalty must be a float, not a " + val_type,
             )
         elif not 0 <= value <= 2:
             raise BadChatCompletionParams(bad_param={"presence_penalty": value})
@@ -470,6 +476,7 @@ class GPTChat:
             "frequency_penalty": self.frequency_penalty,
             "presence_penalty": self.presence_penalty,
             "return_type": self.return_type,
+            "template": self.template,
         }
 
     def _verify_save_dict(self, save_dict: dict) -> dict:
@@ -506,6 +513,8 @@ class GPTChat:
             raise ValueError("Must either pass an API_KEY here, or set it in the constructor")
         self.presence_penalty = save_dict["presence_penalty"]
         self.return_type = save_dict["return_type"]
+        if "template" in save_dict:
+            self.template = save_dict["template"]
 
 
 import unittest

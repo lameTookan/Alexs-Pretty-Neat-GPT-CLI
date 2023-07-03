@@ -35,6 +35,9 @@ Below is a sample template named `gpt-4_default`:
 Each template key has a specific role:
 
 - `chat_log`: Contains parameters for the `ChatLog` object. The `chat_log` dictionary can have the following keys: `model`, `max_model_tokens`, `max_completion_tokens`, `max_chat_messages`, `token_padding`. All these keys are optional since `ChatLog` has default values for them. However, it's a good practice to at least include the `model` to prevent unexpected behavior.
+  - Note that `max_model_tokens` controls how many tokens are allowed to be sent over to the API. It does not impact any model settings.
+  - ie `ChatLog`s job is to manage chat logs, not model settings.
+  - The `model` parameter is only used to count tokens(using tiktoken)
 - `gpt_chat`: Contains parameters for the `GPTChat` object. The `gpt_chat` dictionary can have the following keys: `model_name`, `max_tokens`, `temperature`, `top_p`, `frequency_penalty`, `presence_penalty`. All these keys are optional, but the `GPTChat` object is designed to exclude any `None` values. It's recommended to at least include `model_name` to ensure correct behavior.
 - `description`: A string describing the template. Even if it's empty, it must be included to prevent errors.
 - `tags`: A list of tags for the template. Even if the list is empty, it must be included to prevent errors.

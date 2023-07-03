@@ -1,3 +1,4 @@
+import misc.ax as ax 
 class fg:
   black = "\u001b[30m"
   red = "\u001b[31m"
@@ -115,35 +116,7 @@ def get_divider(divider_name="basic"):
 	return text
 
 
-nicki_minaj = """
-Pull up in the monster, automobile gangsta
-With a bad bitch that came from Sri Lanka
-Yeah, I'm in that Tonka, color of Willy Wonka
-You could be the king but watch the Queen conquer
-Okay, first things first I'll eat your brains
-Then I'ma start rockin' gold teeth and fangs
-'Cause that's what a motherfuckin' monster do
-Hairdresser from Milan, that's the monster 'do
-Monster Giuseppe heel, that's the monster shoe
-Young money is the roster and the monster crew
-And I'm all up, all up, all up in the bank with the funny face
-And if I'm fake, I ain't notice 'cause my money ain't
-So let me get this straight, wait, I'm the rookie?
-But my features and my shows ten times your pay?
-Fifty K for a verse, no album out
-Yeah, my money's so tall that my Barbies gotta climb it
-Hotter than a Middle Eastern climate, violent
-Tony Matterhorn, dutty wine it, wine it
-Nicki on them titties when I sign it
-That's how these [the_dev_is_white] so one-track minded
-But really, really I don't give a F-U-C-K
-"Forget Barbie, fuck Nicki 'cause sh-she's fake"
-"She on a diet, " but my pockets eatin' cheesecake
-And I'll say bride of Chucky is child's play
-Just killed another career it's a mild day
-Besides, Ye, they can't stand besides me
-I think me, you and Amb' should ménage Friday
-Pink wig, thick ass, give 'em whip lash
-I think big, get cash, make 'em blink fast
-Now look at what you just saw, this is what you live for
-Ah, I'm a motherfuckin' monster"""
+
+def xy(st):
+  return ax.xxxxy(st)
+

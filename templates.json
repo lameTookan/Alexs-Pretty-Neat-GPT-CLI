@@ -1,16 +1,63 @@
 {
-    "gpt-3_16K_default": {
+    "gpt-3_creative": {
         "chat_log": {
             "max_chat_messages": 2000,
             "max_completion_tokens": 2000,
             "max_model_tokens": 16000,
-            "model": "gpt-3",
+            "model": "gpt-35-turbo",
+            "token_padding": 2000
+        },
+        "description": "Creative settings for gpt-3-16K, produces more varied responses",
+        "gpt_chat": {
+            "max_tokens": 2000,
+            "model_name": "gpt-3.5-turbo-16k",
+            "temperature": 0.8
+        },
+        "tags": [
+            "gpt-3-16K",
+            "creative",
+            "high-temperature",
+            "gpt-3"
+        ]
+    },
+    
+    "gpt-3_small": {
+        "chat_log": {
+            "max_chat_messages": 1000,
+            "max_completion_tokens": 1000,
+            "max_model_tokens": 2000,
+            "model": "gpt-35-turbo",
+            "token_padding": 1000
+        },
+        "description": "Small settings for gpt-3-16K, limits output to a smaller token count",
+        "gpt_chat": {
+            "max_tokens": 1000,
+            "model_name": "gpt-3.5-turbo-16k",
+            "temperature": 0.5
+        },
+        "tags": [
+            "gpt-3-16K",
+            "small",
+            "low-token",
+            "gpt-3"
+        ]
+    },
+    
+    "gpt-3_default": {
+        "chat_log": {
+            "max_chat_messages": 2000,
+            "max_completion_tokens": 2000,
+            "max_model_tokens": 16000,
+            
+            "model": "gpt-35-turbo",
             "token_padding": 500
+
+            
         },
         "description": "Default settings for gpt-3-16K",
         "gpt_chat": {
             "max_tokens": 2000,
-            "model_name": "gpt-3-16K",
+            "model_name": "gpt-3.5-turbo-16k",
             "temperature": 0.5
         },
         "tags": [
@@ -20,6 +67,51 @@
             "gpt-3"
         ]
     },
+    "gpt-3_experimental": {
+        "chat_log": {
+            "max_chat_messages": 2000,
+            "max_completion_tokens": 2000,
+            "max_model_tokens": 16000,
+            "model": "gpt-35-turbo",
+            "token_padding": 2000
+        },
+        "description": "Experimental settings for gpt-3-16K, tries out higher temperature and top_p values",
+        "gpt_chat": {
+            "max_tokens": 2000,
+            "model_name": "gpt-3.5-turbo-16k",
+            "temperature": 0.8,
+            "top_p": 0.9
+        },
+        "tags": [
+            "gpt-3-16K",
+            "experimental",
+            "high-temperature",
+            "high-top_p",
+            "gpt-3"
+        ]
+    },
+    "gpt-3_conservative": {
+        "chat_log": {
+            "max_chat_messages": 2000,
+            "max_completion_tokens": 2000,
+            "max_model_tokens": 16000,
+            "model": "gpt-35-turbo",
+            "token_padding": 2000
+        },
+        "description": "Conservative settings for gpt-3-16K, produces less varied responses",
+        "gpt_chat": {
+            "max_tokens": 2000,
+            "model_name": "gpt-3.5-turbo-16k",
+            "temperature": 0.2
+        },
+        "tags": [
+            "gpt-3-16K",
+            "conservative",
+            "low-temperature",
+            "gpt-3"
+        ]
+    },
+    
     "gpt-4_creative": {
         "chat_log": {
             "max_chat_messages": 1000,
@@ -40,6 +132,29 @@
             "high-temperature"
         ]
     },
+    "gpt-4_conservative":{
+        "chat_log": {
+            "max_chat_messages": 1000,
+            "max_completion_tokens": 1000,
+            "max_model_tokens": 8000,
+            "model": "gpt-4",
+            "token_padding": 500
+        },
+        "gpt_chat": {
+            "max_tokens": 1000,
+            "model_name": "gpt-4",
+            "temperature": 0.2
+        },
+        "tags": [
+            "gpt-4",
+            "conservative",
+            "low-temperature"
+        ],
+        "description":"Conservative settings for gpt-4, produces less varied responses"
+    
+    
+
+    },
     "gpt-4_default": {
         "chat_log": {
             "max_chat_messages": 1000,
@@ -53,7 +168,7 @@
             "frequency_penalty": 0.5,
             "max_tokens": 1000,
             "model_name": "gpt-4",
-            "temperature": 1.1,
+            "temperature":0.7,
             "top_p": 1.0
         },
         "tags": [

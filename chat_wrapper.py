@@ -211,6 +211,8 @@ class ChatWrapper:
     def chat_with_assistant(self, message: str) -> str:
         """Sets an assistant message and returns the response, pretty printed"""
         self._check_setup()
+        if message == "" or None:
+            message = "  "
         self.user_message = message
         self.run_chat()
         return self._format_return_type(self.assistant_message)

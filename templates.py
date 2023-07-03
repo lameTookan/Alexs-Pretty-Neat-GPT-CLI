@@ -253,10 +253,7 @@ class GetTemplates:
             result = {"name": template_name, "error": "Template not found"}
         return result
             
-    def get_template(self, template_name):
-        if template_name not in self.templates.keys():
-            raise self.TemplateNotFoundError(template_name=template_name)
-        return self.templates[template_name]
+    
 
     class TemplateNotFoundError(Exception):
         def __init__(self, message=None, template_name: str = None):
@@ -277,4 +274,8 @@ class GetTemplates:
 
         def __str__(self):
             return self.message
-template_selector = GetTemplates(templates)
+        
+        
+with open ("templates.json", "r") as f:
+    temp = json.load(f)
+template_selector = GetTemplates(temp)

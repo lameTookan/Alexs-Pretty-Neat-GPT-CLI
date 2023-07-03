@@ -161,6 +161,4 @@ class ChatWrapperFactory:
 
 wrapper_factory = ChatWrapperFactory(API_KEY, template_selector)
 
-if __name__ == "__main__":
-    wrapper = wrapper_factory.make_chat_wrapper()
-    print(wrapper.__repr__())
+
