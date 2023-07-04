@@ -11,10 +11,10 @@ from unittest.mock import Mock, patch
 import openai
 
 import ChatHistory as ch
-import super_secret
+from settings import API_KEY, DEFAULT_MODEL, DEFAULT_TEMPLATE_NAME
 
 
-API_KEY = super_secret.OPENAI_API_KEY
+
 
 
 class BadModelParametersError(Exception):
@@ -92,7 +92,19 @@ def try_converting_to_datatype(value: Any, datatype: type) -> Any | bool:
         return datatype(value)
     except ValueError:
         return False
-
+def process_zero_and_none(value: str) -> tuple[bool, Any]:
+    if isinstance(value, str):
+        try:
+            if value.lower().strip() == "none":
+                return True, None
+            elif value.lower().strip() == "zero":
+                return True, 0
+            else:
+                return False, value
+        except AttributeError:
+            return False, value
+    else:
+        return False, value
 
 class GPTChat:
     """
@@ -129,13 +141,7 @@ class GPTChat:
         "dict",
         "Message",
     }
-    # If you would like to modify other parameters, you can modify the .make_api_call() method directly. There are others, but they are beyond the scope of this project
-    # ie this doesn't support the stream parameter, only one response is returned at a time, and logit_bias is not supported
-    # NOTE MOVE THIS TO a dedicated documentation file for this class 
-    # should be fairly easy to add support for these parameters, if you want to. Add a setter and getter for the parameter, and then modify the make_api_call method to include the parameter the same as the other parameters
-    # also, if you want to add support for the stream parameter, you would need to do some serious refactoring of the make_api_call method, as it would need to be able to handle multiple responses at once, as well as the ChatLog class, and the menu system. 
-    # Honestly would probably recommend starting from scratch if you want to add support for the stream parameter, I am not yet familiar enough with server events to do it myself yet
-    # this isn't called Intermediate Chatbot for nothing!
+   
     possible_optional_params = {
         "max_tokens",
         "temperature",
@@ -154,6 +160,7 @@ class GPTChat:
         "frequency_penalty": "Float between 0 and 2 that penalizes new tokens based on whether they appear in the text so far",
         "presence_penalty": "Float between 0 and 2 that penalizes new tokens based on their existing frequency in the text so far",
     }
+    version = "1.0.0"
 
     def __init__(
         self,
@@ -222,6 +229,12 @@ class GPTChat:
     @temperature.setter
     def temperature(self, value: float) -> None:
         """Sets the temperature, which is a float between 0 and 2"""
+        
+        special, val = process_zero_and_none(value)
+        if special == True:
+            self._temperature = val
+            return None
+        
         if value is None:
             self._temperature = value
             return None
@@ -278,6 +291,10 @@ class GPTChat:
     @top_p.setter
     def top_p(self, value: float) -> None:
         """Sets the top p, which is a float between 0 and 1"""
+        special, val = process_zero_and_none(value)
+        if special == True:
+            self._top_p = val
+            return None
         if value is None:
             self._top_p = value
             return None
@@ -299,6 +316,9 @@ class GPTChat:
     @frequency_penalty.setter
     def frequency_penalty(self, value: float) -> None:
         """Sets the frequency penalty, which is a float between 0 and 2"""
+        special, val = process_zero_and_none(value)
+        if special == True:
+            self._frequency_penalty = val 
         if value is None:
             self._frequency_penalty = value
             return None
@@ -322,7 +342,10 @@ class GPTChat:
     @presence_penalty.setter
     def presence_penalty(self, value: float) -> None:
         """Sets the presence penalty, which is a float between 0 and 2"""
-
+        special, val = process_zero_and_none(value)
+        if special == True:
+            self._presence_penalty = val
+            return None
         if value is None:
             self._presence_penalty = value
             return None

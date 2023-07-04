@@ -1,2 +1,3 @@
-Hello, this is a test message from a new feature. If you can see this, please respond 
-by saying "SILLY BILLY, I can see this, Alex!".
+This is the default file for the from_chat feature. Simply paste in your desired message here and use the from_file command in the chat loop, and it will be sent as a message
+
+Note: This may not work if the token count exceeds the max allowed in the chat log. Around 6.9K tokens using the default template for GPT-4 8k

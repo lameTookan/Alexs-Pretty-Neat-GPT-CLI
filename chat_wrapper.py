@@ -53,7 +53,7 @@ class ChatWrapperNotSetupError(Exception):
 
 
 class ChatWrapper:
-    version = "0.1.1"
+    version = "1.0.1"
 
     # Should have an API_KEY set to a variable called API_KEY if you don't want to provide one during construction, (Need one to load the GPTChat object)
     def __init__(
@@ -332,11 +332,14 @@ class ChatWrapper:
         def load_from_file(self, file_name: str) -> None:
             """Loads a save file into the chat wrapper"""
             file_name = self._add_file_path(file_name)
-            if not os.path.exists(file_name):
+            try:
+                with open(file_name, "r") as f:
+                    save_dict = json.load(f)
+                self.load_save_dict(save_dict)
+            except FileNotFoundError:
+                print("File not found: " + file_name)
                 return False
-            with open(file_name, "r") as f:
-                save_dict = json.load(f)
-            self.load_save_dict(save_dict)
+            return True
 
         def _add_file_path(self, file_name: str) -> str:
             """Adds the path to the file name, as well as the .json extension"""

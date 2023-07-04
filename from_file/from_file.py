@@ -1,11 +1,11 @@
-import os 
-
 import os
+
 
 class FromFile:
     """A class meant to interact with text files in a specific folder or return a default text file.
     If the specified file or folder does not exist, it gets created.
     """
+
     def __init__(self, file_folder="files", default="default.txt"):
         self.parent_dir = os.path.dirname(os.path.realpath(__file__))
         self.file_folder = file_folder
@@ -18,7 +18,7 @@ class FromFile:
         """Sets up the necessary folders and files."""
         os.makedirs(self.save_path, exist_ok=True)
         if not os.path.exists(self.default_path):
-            open(self.default_path, 'w').close()
+            open(self.default_path, "w").close()
 
     def get_default(self):
         """Returns the contents of the default file."""
@@ -47,12 +47,12 @@ class FromFile:
             print("Type 'q' to quit")
             self._display_files()
             ans = input(">>> ").strip()
-            if ans.lower() in  ("q", "quit", "exit"):
+            if ans.lower() in ("q", "quit", "exit"):
                 return None
             if ans.isdigit():
-                try: 
+                try:
                     ans = int(ans)
-                    file = os.listdir(self.save_path)[ans-1]
+                    file = os.listdir(self.save_path)[ans - 1]
                     return self.get_file(file)
                 except IndexError:
                     print("Please enter a valid number")
@@ -61,8 +61,3 @@ class FromFile:
 
 
 file_selector = FromFile()
-        
-        
-
- 
-    

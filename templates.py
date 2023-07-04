@@ -78,11 +78,8 @@ def get_template_from_file(file_path: str = "templates.json") -> dict:
     return templates
 
 
-
-
-
 class GetTemplates:
-    
+
     """Class to manage templates and provide a simple interface to get templates
     Methods:
         __init__(templates: dict) -> None
@@ -229,7 +226,10 @@ class GetTemplates:
         if template_name not in self.templates.keys():
             raise self.TemplateNotFoundError(template_name=template_name)
         return self.templates[template_name][part]
-    def get_all_templates_names(self, include_tags: bool = False, include_descriptions: bool = False) -> list[str] | list[dict]:
+
+    def get_all_templates_names(
+        self, include_tags: bool = False, include_descriptions: bool = False
+    ) -> list[str] | list[dict]:
         result = []
         for name in self.templates.keys():
             if include_tags or include_descriptions:
@@ -242,18 +242,24 @@ class GetTemplates:
                 item = name
             result.append(item)
             return result
+
     def get_all_templates(self) -> dict:
         return self.templates
+
     def get_template_info(self, template_name: str) -> dict:
         result = {}
-        try: 
+        try:
             template = self.get_template(template_name)
-            result.update({"name": template_name, "description": template["description"], "tags": template["tags"]})
+            result.update(
+                {
+                    "name": template_name,
+                    "description": template["description"],
+                    "tags": template["tags"],
+                }
+            )
         except self.TemplateNotFoundError:
             result = {"name": template_name, "error": "Template not found"}
         return result
-            
-    
 
     class TemplateNotFoundError(Exception):
         def __init__(self, message=None, template_name: str = None):
@@ -265,7 +271,6 @@ class GetTemplates:
         def __str__(self):
             return self.message
 
-
     class BadTemplateError(Exception):
         def __init__(self, message: str = None):
             if message is None:
@@ -274,8 +279,8 @@ class GetTemplates:
 
         def __str__(self):
             return self.message
-        
-        
-with open ("templates.json", "r") as f:
+
+
+with open("templates.json", "r") as f:
     temp = json.load(f)
 template_selector = GetTemplates(temp)

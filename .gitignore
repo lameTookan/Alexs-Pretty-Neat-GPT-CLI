@@ -159,4 +159,6 @@ Intermediete_Chatbot.code-workspace
 chatbot_saves/
 .vscode/
 from_file/files/
+system_prompts/
+text_exports/
 ```

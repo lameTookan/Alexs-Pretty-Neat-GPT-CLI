@@ -1,11 +1,9 @@
-
 a = 1
 b = 12
 c = 14
-d = 3 
+d = 3
 e = 5
 mn = "qlfnl plqdm"
-
 nm = """Sxoo xs lq wkh prqvwhu, dxwrpreloh jdqjvwd
 Zlwk d edg elwfk wkdw fdph iurp Vul Odqnd
 -hdk, Lbp lq wkdw Wrqnd, froru ri ZlooB Zrqnd
@@ -38,33 +36,26 @@ L wklqn elj, jhw fdvk, pdnh bhp eolqn idvw
 Qrz orrn dw zkdw Brx mxvw vdz, wklv lv zkdw Brx olyh iru
 Dk, Lbp d prwkhuixfnlqb prqvwhu
 """
-
-
 def d12(s):
     global e
     cymk2 = ""
     for xyzz in s:
         cymk2 += chr((ord(xyzz) - 32 + e) % 95 + 32)
-    
     ccc = ""
     for xyzz in cymk2:
         ccc += chr((ord(xyzz) - 32 - e) % 95 + 32)
-    
     return ccc
-
-
-def m(st, ):
+def m(st,):
     cy = ""
-    xy = (1+ (d + 12) + 16 +  1) - (5*2 * 3) - 10//11
+    xy = (1 + (d + 12) + 16 + 1) - (5 * 2 * 3) - 10 // 11
     cymk = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'-"
-    
     for dddd in st:
         if dddd in cymk:
             new_pos = (cymk.index(dddd) + xy) % len(cymk)
             cy += cymk[new_pos]
         else:
             cy += dddd
-    
+
     return cy
 def m1(st):
     r = []
@@ -72,34 +63,26 @@ def m1(st):
         if xyzz in st:
             r.append(xyzz)
     return "".join(r)
-
 def mmm(st):
-    rr= ""
+    rr = ""
     for xyzz in st:
         if xyzz in st and xyzz != False:
             rr += xyzz
     return rr
-        
-
 def yyy(st):
     mmm = ""
     xy = d
-
     xyzzs = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'-"
-
     for xyzz in st:
         if xyzz in xyzzs:
             ooo = (xyzzs.index(xyzz) - xy) % len(xyzzs)
             mmm += xyzzs[ooo]
         else:
             mmm += xyzz
-
     return mmm
-
 def xxxxy(st):
     if d12(m1(mmm(m(st)))) == mn:
         print("\u001b[35m" + mmm(m1(yyy(nm))) + "\u001b[0m")
         return True
     else:
         return False
-

@@ -264,7 +264,7 @@ Today was a long day, for sure. It took forever, but things are finally coming t
 - Tested everything in the menu system
 - Added a few more templates for the system
 - Added a bypass menu env variable to bypass the main menu and go straight into the main chat loop
-- Worked out a bug with the wildcard system preventing the ability for users to use curley braces in system prompts
+- Worked out a bug with the wildcard system preventing the ability for users to use curly braces in system prompts
 
 ### Dev Notes
 
@@ -278,7 +278,7 @@ Today was a long day, for sure. It took forever, but things are finally coming t
 ### What I learned today
 
 - There are much better ways to make a command line interface like this, and I should use them
-- A lot more on this will be included in my final retrospectiive
+- A lot more on this will be included in my final retrospective
 
 ### To do(before release)
 
@@ -296,7 +296,106 @@ This is stuff I can do when I pick up this project again to improve it
 - Reorganize code base to avoid circular imports
 - Refactor chatlog.
   - UserList for the main chat log(what I call full_chat_log)
-  - Take a hard line stance on the Messages. It should only work with Message objects, not strings. There are too many convience methods meant to allow for inputting of strings, dicts etc
+  - Take a hard line stance on the Messages. It should only work with Message objects, not strings. There are too many convince methods meant to allow for inputting of strings, dicts etc
   - To this end, use the message factory callable I have to generate a function to properly encode Messages with the model name,
   - Overall this is a pretty small thing though, it does work with Messages for the most part, I just have wrapper methods for the main ones that deal with Message objects to allow for inputting stuff as a string and role, and exporting as strings.
     - Maybe 4 of such methods
+
+---
+
+## Dev Log FInal Day (July 3, 2023)
+
+### What I did today
+
+- Made the parameter menu a little more user friendly
+  - Typing the word `zero` will now set the param to zero
+  - Typing the word `none` will now remove the parameter entirely
+  - Directions that when setting a parameter to something between -1 and 1 (ie 0. something ) you must use a trailing zero
+- Improved documentation for the template system
+  - the template documentation now includes more information on what the chat log parameters do
+  - Added a template directory that briefly describes each template built in
+- Added documentation for `GPTChat`
+- Improved the `from_file` system to be a little more user friendly
+  - It will now tell users if there message is too long to be added to the chat log, with helpful information on what a token is
+  - The message itself will be printed to the console so users can see what they added
+- Made it so the default instructions in the chat loop are more concise, with help bringing up all the command info
+- Cleaned up the code, removed any old commented out stuff, ran my unittests one more time to ensure nothing was broken while I was fixing stuff when debugging the menu system
+- Integrated the chat export menu into the menu system
+  - This is still kinda rough, probably should have added one command to accomplish this task rather than a menu
+  - Also should have probably included a system to export only the most recent assistant message
+- Made the `main.py` added a few cute formatting stuff  using pyfig
+- Changed the overall name of this project from "Intermediete Chatbot" to "Alex's Pretty Neat GPT CLI Chatbot" or " A.P.N.G.CLI" for short
+- Made the README file
+- Made the HELP_ME file
+
+### Things I can do if I ever decide to pick up this project again
+
+- Completely refactor the menu system
+- Remake the ChatLog class to be better encapsulated and remove all the convenience methods included
+- Perhaps add a few fun features, like a simple agent system
+
+---
+
+## Final Retrospective
+
+Overall, I am honestly pretty pleased with how this turned out. The menus aren't quite as bad as I was thinking yesterday, I really like the from_file system. And the underlying codebase works extremely well, is well documented, clean, and tested. I also learned a lot in this process on how to make a larger project like this
+
+### Things I learned
+
+- Command patterns for CLI interfaces, no weird and complex nested menus
+
+- Circular imports and code organization are something I need to think about and plan for from day one
+
+  - No importing things as shortned version (like `g` for `GPTChat` , `cw` for `ChatWrapper` etc.)
+
+- Unittests are great, but I should have put them all in a dedicated folder to not clog up my code base and file system
+
+- Speaking of file systems, I should have organized everything into folders better
+
+- Better adherence to OOP principals -- Its not that big of a deal to need to use objects when interacting with my classes, especially if I include factories
+
+  - Doing stuff, like instead of accepting message dictionaries, roles and content as params, and Message objects in ChatLog just produce a dedicated callable factory object to make messages
+    - I did this because, in order to count the tokens, Message needs the model name, and since that might change I didn't want to need to plan around that.
+    - But using a class with a `__call__` method, I could have made a dedicated function and used that for creating message objects
+
+- No returning None or False as a fail state anywhere
+
+  - I did this because for scenarios like the following
+    - User wants to save a file. The method that handles this has a `overwrite` argument that is set to `False` by default
+    - Try writing the file using the method in an if statement, if the file is found it will output `False` , then I could ask the user if they would like to overwrite the given file and call it again with overwrite set to `True`
+  - However, this design pattern, makes finding bugs extremely difficult, especially when they are multiple objects and methods chained together, in scenarios when something is `False` or `None` when it shouldn't have been tracking down where that occurred was kinda a pain
+  - What I should have done was simply raise a FileNotFoundError in such a scenario, and catch it if I want to check, or use a dedicated method t check if a file exists
+
+- No long classes, each class should only have a few methods and attributes for better readability and maintainability, with additional functionality being added using wrappers or child classes
+
+  - Instead of my ChatLog class handling managing both the full chat log and the trimming process, I should have made `full_chat_log` a separate `UserList` with the trimming process being done by a wrapper
+
+### Things I did well
+
+- Custom exceptions and proactive defensive programming
+  - Someone using my classes will never see any normal python errors, unless there is a programming error within my class.
+  - The only exceptions they will see are a result of them using the classes incorrectly, with informative error information explaining exactly what the problem is and how to avoid it
+  - Type checking when setting params to avoid it causing errors down the line
+- I really like the GPTChat wrapper and all its verification and informative help information being displayed with incorrect variables
+
+- The use of deques in the ChatLog class and the trimming process
+  - This works super well and speedy as heck
+  - In a previous version of this project, I used normal lists and `.pop(0)` for this functionality, this was extremely slow
+    - I'd also recount the entire chat log's token count before and after removal of a message instead of just counting them once on creation and adding or subtracting the message's token count
+    - Ive done a little stress testing, with massive files of 100,000 short messages and it takes only a few seconds to go through the entire thing, vs in my previous versions that took around 10-15 seconds
+
+- My favorite overall is the template system. It really simplifies creating ChatLog, GPTChat, and ChatWrapper objects with common configs
+- The chat wrapper class is also really solid and easy to use. Aside from saving and loading there is a single method you need to use to input a user message and generating a response
+  - API calls, and adding the message to chat log, and retrieving the assistant message is all handled automatically
+
+### Final Thoughts
+
+I am pretty pleased with this project overall. I actually really dig the functionality here. In particular being able to easily change model params and system messages during a chat is super useful for testing out various configurations. I also really like the `from_file` and  exporting system for inputting longer messages.
+
+Of course, its by no means perfect. The menu system is probably the worst out of everything, but everything works well. This project would have been sort of pointless if I didn't learn anything and did everything well.
+
+Until next time,
+
+Fin.
+
+Made by Alex.

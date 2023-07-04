@@ -3,15 +3,18 @@ import json
 import os
 import random
 import sys
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from collections import namedtuple
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
+
 import openai
 import tiktoken
 
+import from_file.from_file as ff
 import misc.MyStuff as ms
 import object_factory as fact
-from settings import API_KEY, DEFAULT_MODEL, DEFAULT_TEMPLATE_NAME, BYPASS_MAIN_MENU
-import from_file.from_file as ff
+from ExportChatLogs import export_chat_menu
+from settings import (API_KEY, BYPASS_MAIN_MENU, DEFAULT_MODEL,
+                      DEFAULT_TEMPLATE_NAME)
 
 
 def split_input_from_cmd(cmd: str, string: str) -> str:
@@ -144,7 +147,7 @@ class SystemPromptManager:
         """Reads a file and returns the text as a string"""
         file_name = self.add_file_path(file_name)
         if not os.path.exists(file_name):
-           raise FileNotFoundError(f"File {file_name} does not exist")
+            raise FileNotFoundError(f"File {file_name} does not exist")
         try:
             with open(file_name, "r") as f:
                 file = f.read()
@@ -254,7 +257,7 @@ class SysPromptManagerMenu:
             elif ans_lower.startswith("load"):
                 print("Loading system prompt...")
                 cmd = split_input_from_cmd("load", ans)
-                try: 
+                try:
                     loaded_file = self.sys_prompt_manager.read_file(cmd)
                     print("System prompt loaded successfully!")
                     self.loaded_file = loaded_file
@@ -262,8 +265,6 @@ class SysPromptManagerMenu:
                 except FileNotFoundError:
                     print("Invalid file name. Please try again.")
                     continue
-                    
-                
 
             elif ans_lower.startswith("remove"):
                 if split_input_from_cmd("remove", ans) in files_list:
@@ -293,8 +294,10 @@ class SysPromptManagerMenu:
 
         def refresh_file_list() -> tuple[str, list]:
             """Returns a string with all the file names in the save folder"""
-            return "\n".join(self.sys_prompt_manager.get_file_names()), self.sys_prompt_manager.get_file_names(),
-            
+            return (
+                "\n".join(self.sys_prompt_manager.get_file_names()),
+                self.sys_prompt_manager.get_file_names(),
+            )
 
         files, files_list = refresh_file_list()
         message = "\n".join(msg_list)
@@ -541,6 +544,7 @@ class ChatLoop:
         self.file_selector = file_selector
         self.chat_wrapper: fact.cw.ChatWrapper = chat_wrapper
         self.chunking = chunking
+        self.model_name = chat_wrapper.chat_log.model if chat_wrapper.chat_log else DEFAULT_MODEL
         self.chat_log: fact.cw.g.ch.ChatLog = chat_wrapper.chat_log
         self.gpt_chat: fact.cw.g.GPTChat = chat_wrapper.gpt_chat
         self.sys_manager_obj: SysPromptManagerMenu = sys_manager_obj
@@ -557,7 +561,7 @@ class ChatLoop:
         ]
         help_message = "\n".join(help_list)
         if cmd is not None:
-            command = cmd 
+            command = cmd
 
             if command.lower().strip() == "help":
                 print(help_message)
@@ -568,19 +572,24 @@ class ChatLoop:
                 print("File loaded successfully!")
                 return file
             else:
-                try: 
+                try:
                     file = self.file_selector.get_file(command)
                     print("File loaded successfully!")
                     return file
                 except FileNotFoundError:
                     print("File not found, please try again.")
-           
+
         else:
             print("Loading default.txt file...")
             return self.file_selector.get_default()
 
     def run_chat_loop(self):
         """Main chat loop for the chat wrapper"""
+        quick_msg_list = [
+            "Type quit to quit (and return to main menu)",
+            "Type help to see all commands" "Type save to save the chat log",
+            "Type load to load a chat log from the save folder",
+        ]
         msg_list = [
             f"Type {ms.yellow('quit')} to quit (and return to main menu)",
             f"Type {ms.yellow('save')} to save the chat log",
@@ -593,13 +602,14 @@ class ChatLoop:
             f"Type {ms.yellow('sys')} to load or change a system prompt with saving enabled",
             f"Type {ms.yellow('quicksys')} to load or change a system prompt without saving",
             f"Type {ms.yellow('sysmanage')} to access the System Prompt Manager Menu",
+            f"Type {ms.yellow('export')} to export the chat log to a text file(experimental). Save the chat log first!",
         ]
 
         message = "\n".join(msg_list)
         print(
             "Welcome to the Chat Loop!",
         )
-        print(message)
+        print("\n".join(quick_msg_list))
 
         while True:
             if self.chunking:
@@ -620,6 +630,10 @@ class ChatLoop:
                 self.save_menu()
                 print("Returning to the chat loop...")
                 continue
+            elif ans_lower in ("export", "e"):
+                print("Opening export menu...")
+                export_chat_menu.main_menu()
+                print("Back in the chat loop...")
             elif ans_lower.startswith("from_file"):
                 command = ans_lower.replace("from_file", "").strip()
                 if command == "" or command is None:
@@ -627,11 +641,23 @@ class ChatLoop:
                 else:
                     file_text = self.from_file_cmd(command)
                 if file_text is not None:
+                    tokens = self.chat_wrapper.chat_log.make_message("user", file_text).tokens 
+                    if tokens > self.chat_wrapper.chat_log.max_chat_tokens:
+                        print(
+                            ms.red(f"Warning: Your input is {tokens - self.chat_wrapper.chat_log.max_chat_tokens} ({str(tokens)} total tokens) tokens too long. The maximum input length for this instance  is {self.chat_wrapper.chat_log.max_chat_tokens} tokens. ")
+                        )
+                        print("Hint: A token is around 4 characters long. So a 1024 token input will usually have  2/3 as many words.  ")
+                        print("You can also modify the max chat tokens by customizing a template. Head over to the template documentation in the docs folder for more information.")
+                        print("For more information, head over to this link:")
+                        print("https://platform.openai.com/tokenizer")
+                        print("File could not be loaded. Please try again.")
+                        continue 
                     print("File loaded successfully!")
+                    print("> " + file_text)
                     print("Generating response...")
                     response = self.chat_wrapper.chat_with_assistant(file_text)
                     print(response)
-                    
+
             elif ans_lower in (
                 "clear",
                 "r",
@@ -702,9 +728,10 @@ class ChatLoop:
                     if self.chat_wrapper.chat_log._sys_prompt == new_prompt:
                         print("System prompt changed.")
                     else:
-                        print("A error has occurred that indicates a deep problem with this code base. Please report this issue on the github page, along with the following information:")
+                        print(
+                            "A error has occurred that indicates a deep problem with this code base. Please report this issue on the github page, along with the following information:"
+                        )
                         print(repr(self.chat_wrapper))
-                    
 
             else:
                 if ans == "" or ans == " " or ans == None:
@@ -822,12 +849,14 @@ class ChatLoop:
             "'param_help {parameter_name}': Get a description of a specific parameter. Use without a parameter name for a list of all parameters and their descriptions.",
         ]
 
-        current_params_list = [
-            f"{key}: {value}"
-            for key, value in self.chat_wrapper.gpt_chat.get_params().items()
-        ]
+        def make_param_list():
+            return [
+                f"{key}: {value}"
+                for key, value in self.chat_wrapper.gpt_chat.get_params().items()
+            ]
+
         msg = "\n".join(msg_list)
-        current_params = "\n".join(current_params_list)
+        current_params = "\n".join(make_param_list())
         print(msg)
         print("Current parameters:")
         print(current_params)
@@ -845,7 +874,7 @@ class ChatLoop:
             elif ans_lower in ("list", "l"):
                 print("Possible parameters:", " ".join(list(possible_params)))
                 print("Current parameters:")
-                print(current_params)
+                print("\n".join(make_param_list()))
             elif ans_lower.startswith("param_help"):
                 param = split_input_from_cmd("param_help", ans_lower)
                 if param is None or param == "" or param not in possible_params:
@@ -862,7 +891,16 @@ class ChatLoop:
                     print("Invalid parameter. Please try again.")
                     print("Possible parameters:", " ".join(list(possible_params)))
                 else:
+                    print(
+                        "Please note, in order to set a parameter to a value less than one you must begin the value with a 0."
+                    )
+                    print("For example, '.1' will not work, but '0.1' will.")
+                    print(
+                        "To remove a value entirely(and use OpenAI's default), type 'None' (without quotes)"
+                    )
+                    print("To set a value to zero type 'zero' (without quotes)")
                     value = input(f"Enter a value for {param}: ")
+
                     try:
                         self.gpt_chat.modify_params(**{param: value})
                     except fact.cw.g.BadChatCompletionParams as e:
@@ -1153,7 +1191,9 @@ class MainMenu:
                         try:
                             if self.chat_wrapper.load(ans):
                                 print("Chat loaded.")
-                                if confirm("Would you like to start chatting immediately?"):
+                                if confirm(
+                                    "Would you like to start chatting immediately?"
+                                ):
                                     self.start_chat()
                                 return True
                             else:
@@ -1177,7 +1217,9 @@ class MainMenu:
         self.factory.select_template(self.selected_template_name)
         self.chat_wrapper = self.factory.make_chat_wrapper()
         self.chat_wrapper.chat_log.sys_prompt = self.system_prompt
-        self.chat_loop = ChatLoop(sys_manager_obj=self.sys_prompt_manager, chat_wrapper=self.chat_wrapper)
+        self.chat_loop = ChatLoop(
+            sys_manager_obj=self.sys_prompt_manager, chat_wrapper=self.chat_wrapper
+        )
         self.is_ready = True
 
     def start_chat(self) -> None:
@@ -1192,25 +1234,30 @@ class MainMenu:
                 if self.chat_wrapper is None:
                     self._make_chat_wrapper()
                 else:
-                    self.chat_loop = ChatLoop(sys_manager_obj=self.sys_prompt_manager, chat_wrapper=self.chat_wrapper)
-                
+                    self.chat_loop = ChatLoop(
+                        sys_manager_obj=self.sys_prompt_manager,
+                        chat_wrapper=self.chat_wrapper,
+                    )
+
                 self.chat_loop.run_chat_loop()
                 self.chat_loop = None
                 print("Returning to main menu...")
             except Exception as e:
-                 print(e)
-                 print(
-                     "Error when setting up chat bot. Please make sure you have a valid template selected and a valid system prompt."
-                 )
+                print(e)
+                print(
+                    "Error when setting up chat bot. Please make sure you have a valid template selected and a valid system prompt."
+                )
 
     def main_menu(self) -> None:
         if BYPASS_MAIN_MENU == True:
             print("Bypass main menu is set to true. ")
-            print("You can turn this off by setting BYPASS_MAIN_MENU to 0 in the .env file.")
+            print(
+                "You can turn this off by setting BYPASS_MAIN_MENU to 0 in the .env file."
+            )
             print("Starting chat...")
             self.start_chat()
             print("Exiting program...")
-            return None 
+            return None
         print(ms.magenta("===================================="))
         print(
             ms.yellow(
@@ -1275,13 +1322,13 @@ class MainMenu:
 
         message = "\n".join(msg_list)
         print(message)
-        
+
         while True:
             print("On main menu. Please enter a command.")
             ans = input("> ")
             ans_lower = ans.lower()
             ans_lower = ans_lower.strip()
-            
+
             if ans_lower in ("q", "quit", "exit"):
                 if confirm("Are you sure you want to quit?"):
                     print("Quitting...")
@@ -1301,8 +1348,6 @@ class MainMenu:
                     continue
 
 
-if __name__ == "__main__":
-    sys_prompt_manager = SystemPromptManager()
-    sys_menu = SysPromptManagerMenu(sys_prompt_manager)
-    main_menu = MainMenu(sys_menu)
-    main_menu.main_menu()
+sys_prompt_manager = SystemPromptManager()
+sys_menu = SysPromptManagerMenu(sys_prompt_manager)
+main_menu = MainMenu(sys_menu)
