@@ -474,7 +474,7 @@ class SysPromptManagerMenu:
                 print(ms.yellow(ans))
                 if confirm("Set system prompt to this? Or try again?"):
                     if save:
-                        print("Currently saved system prompt:")
+                        print("Currently saved system prompts:")
                         print("\n".join(self.sys_prompt_manager.get_file_names()))
                         while True:
                             file_name = input(
@@ -603,6 +603,7 @@ class ChatLoop:
             f"Type {ms.yellow('quicksys')} to load or change a system prompt without saving",
             f"Type {ms.yellow('sysmanage')} to access the System Prompt Manager Menu",
             f"Type {ms.yellow('export')} to export the chat log to a text file(experimental). Save the chat log first!",
+            f"Type {ms.yellow('print')} to print the full chat log to the console. "
         ]
 
         message = "\n".join(msg_list)
@@ -691,6 +692,8 @@ class ChatLoop:
             elif ans_lower == "debug":
                 print("Printing debug info...")
                 print(self.chat_wrapper.__repr__())
+            elif ans_lower in ("print", "pr"):
+                print(self.chat_wrapper.chat_log.get_pretty_messages())
 
             elif ans_lower in ("quicksys", "qsys"):
                 print("Entering the quick system prompt menu...")

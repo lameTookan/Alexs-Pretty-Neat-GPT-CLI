@@ -24,15 +24,7 @@ class BadModelParametersError(Exception):
 class BadChatLogParametersError(Exception):
     pass
 
-    def set_model_parameters(self, params: dict):
-        self._check_completion_params(params)
-        self._model_parameters = params
-
-    def set_model(self, model: str):
-        self.model = model
-
-    def set_return_type(self, return_type: str):
-        self.return_type = self._check_return_type(return_type)
+  
 
 
 class BadReturnTypeError(Exception):
@@ -319,6 +311,7 @@ class GPTChat:
         special, val = process_zero_and_none(value)
         if special == True:
             self._frequency_penalty = val 
+            return None
         if value is None:
             self._frequency_penalty = value
             return None

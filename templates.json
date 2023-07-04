@@ -118,7 +118,7 @@
         "gpt_chat": {
             "max_tokens": 1000,
             "model_name": "gpt-4",
-            "temperature": 1.5
+            "temperature": 1.0
         },
         "tags": [
             "gpt-4",
