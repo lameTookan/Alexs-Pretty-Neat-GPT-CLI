@@ -1,6 +1,6 @@
 import json
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
-
+from settings import API_KEY, DEFAULT_MODEL, DEFAULT_TEMPLATE_NAME
 templates = {
     "gpt-4_default": {
         "chat_log": {
@@ -267,7 +267,7 @@ class GetTemplates:
                 message = "Template not found"
             if template_name is not None:
                 message = f"{message} \n Template {template_name} not found"
-
+            self.message = message
         def __str__(self):
             return self.message
 

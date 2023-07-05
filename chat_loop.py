@@ -16,6 +16,15 @@ from ExportChatLogs import export_chat_menu
 from settings import (API_KEY, BYPASS_MAIN_MENU, DEFAULT_MODEL,
                       DEFAULT_TEMPLATE_NAME)
 
+def get_default_template_for_model(model: str) -> str:
+    if model == "gpt-3":
+        return "gpt-3_default"
+    elif model == "gpt-4":
+        return "gpt-4_default"
+    else:
+        return "gpt-3_default"
+    
+
 
 def split_input_from_cmd(cmd: str, string: str) -> str:
     if cmd in string:
@@ -945,7 +954,10 @@ class MainMenu:
         self.API_KEY = API_KEY
         self.factory: fact.ChatWrapperFactory = factory
         self.selected_template_name = DEFAULT_TEMPLATE_NAME
-        self.factory.select_template(self.selected_template_name)
+        try:
+            self.factory.select_template(self.selected_template_name)
+        except self.factory.template_selector.TemplateNotFoundError:
+            self.factory.select_template(get_default_template_for_model(DEFAULT_MODEL))
         self.is_default_template = True
         self.chat_wrapper: fact.cw.g.GPTChat = None
         self.is_ready = False
