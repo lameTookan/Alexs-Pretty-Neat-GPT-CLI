@@ -161,4 +161,5 @@ chatbot_saves/
 from_file/files/
 system_prompts/
 text_exports/
+text_exports_old/
 ```

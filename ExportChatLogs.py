@@ -74,7 +74,7 @@ class ChatLogExporter:
         if not folder.endswith("/"):
             folder += "/"
         if not os.path.exists(folder):
-            raise NoFolderError
+            os.makedirs(folder)
         self.folder = folder
         if not save_folder.endswith("/"):
             save_folder += "/"
